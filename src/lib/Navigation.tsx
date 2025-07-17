@@ -1,0 +1,242 @@
+'use client';
+
+import { useState } from 'react';
+import Link from 'next/link';
+import { useAuth } from '@/lib/auth-context';
+import { useRouter } from 'next/navigation';
+
+export default function Navigation() {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { user, loading, logout } = useAuth();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      router.push('/auth');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
+
+  // Don't render navigation on auth page
+  if (typeof window !== 'undefined' && window.location.pathname === '/auth') {
+    return null;
+  }
+
+  return (
+    <nav className="bg-black/20 backdrop-blur-md border-b border-white/10 sticky top-0 z-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center h-16">
+          {/* Logo */}
+          <Link href="/" className="flex items-center space-x-2">
+            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-sm">CM</span>
+            </div>
+            <span className="text-white font-bold text-xl">ContentMux</span>
+          </Link>
+
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center space-x-8">
+            {user ? (
+              <>
+                <Link
+                  href="/dashboard"
+                  className="text-white/80 hover:text-white transition-colors duration-200"
+                >
+                  Dashboard
+                </Link>
+                <Link
+                  href="/create-content"
+                  className="text-white/80 hover:text-white transition-colors duration-200"
+                >
+                  Create Content
+                </Link>
+                <Link
+                  href="/history"
+                  className="text-white/80 hover:text-white transition-colors duration-200"
+                >
+                  History
+                </Link>
+                <Link
+                  href="/settings"
+                  className="text-white/80 hover:text-white transition-colors duration-200"
+                >
+                  Settings
+                </Link>
+                
+                {/* User Profile Dropdown */}
+                <div className="relative">
+                  <button
+                    onClick={() => setIsMenuOpen(!isMenuOpen)}
+                    className="flex items-center space-x-2 text-white/80 hover:text-white transition-colors duration-200"
+                  >
+                    <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
+                      <span className="text-white font-medium text-sm">
+                        {user.email?.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                    <svg
+                      className={`w-4 h-4 transition-transform duration-200 ${
+                        isMenuOpen ? 'rotate-180' : ''
+                      }`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  {/* Dropdown Menu */}
+                  {isMenuOpen && (
+                    <div className="absolute right-0 mt-2 w-48 bg-black/80 backdrop-blur-md rounded-lg border border-white/10 shadow-lg">
+                      <div className="py-1">
+                        <div className="px-4 py-2 text-sm text-white/60 border-b border-white/10">
+                          {user.email}
+                        </div>
+                        <div className="px-4 py-2 text-xs text-white/40">
+                          Free Trial • 3 jobs left
+                        </div>
+                        <Link
+                          href="/settings"
+                          className="block px-4 py-2 text-sm text-white/80 hover:text-white hover:bg-white/10 transition-colors duration-200"
+                          onClick={() => setIsMenuOpen(false)}
+                        >
+                          Account Settings
+                        </Link>
+                        <Link
+                          href="/billing"
+                          className="block px-4 py-2 text-sm text-white/80 hover:text-white hover:bg-white/10 transition-colors duration-200"
+                          onClick={() => setIsMenuOpen(false)}
+                        >
+                          Billing & Usage
+                        </Link>
+                        <button
+                          onClick={handleLogout}
+                          className="block w-full text-left px-4 py-2 text-sm text-white/80 hover:text-white hover:bg-white/10 transition-colors duration-200"
+                        >
+                          Sign Out
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center space-x-4">
+                <Link
+                  href="/auth"
+                  className="text-white/80 hover:text-white transition-colors duration-200"
+                >
+                  Sign In
+                </Link>
+                <Link
+                  href="/auth"
+                  className="premium-button text-sm"
+                >
+                  Get Started Free
+                </Link>
+              </div>
+            )}
+          </div>
+
+          {/* Mobile Menu Button */}
+          <button
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className="md:hidden text-white/80 hover:text-white transition-colors duration-200"
+          >
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              {isMenuOpen ? (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              )}
+            </svg>
+          </button>
+        </div>
+
+        {/* Mobile Navigation Menu */}
+        {isMenuOpen && (
+          <div className="md:hidden bg-black/40 backdrop-blur-md rounded-lg border border-white/10 mt-2 mb-4">
+            <div className="py-2">
+              {user ? (
+                <>
+                  <div className="px-4 py-2 text-sm text-white/60 border-b border-white/10">
+                    {user.email}
+                  </div>
+                  <div className="px-4 py-2 text-xs text-white/40 border-b border-white/10">
+                    Free Trial • 3 jobs left
+                  </div>
+                  <Link
+                    href="/dashboard"
+                    className="block px-4 py-2 text-white/80 hover:text-white hover:bg-white/10 transition-colors duration-200"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Dashboard
+                  </Link>
+                  <Link
+                    href="/create-content"
+                    className="block px-4 py-2 text-white/80 hover:text-white hover:bg-white/10 transition-colors duration-200"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Create Content
+                  </Link>
+                  <Link
+                    href="/history"
+                    className="block px-4 py-2 text-white/80 hover:text-white hover:bg-white/10 transition-colors duration-200"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    History
+                  </Link>
+                  <Link
+                    href="/settings"
+                    className="block px-4 py-2 text-white/80 hover:text-white hover:bg-white/10 transition-colors duration-200"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Settings
+                  </Link>
+                  <Link
+                    href="/billing"
+                    className="block px-4 py-2 text-white/80 hover:text-white hover:bg-white/10 transition-colors duration-200"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Billing & Usage
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="block w-full text-left px-4 py-2 text-white/80 hover:text-white hover:bg-white/10 transition-colors duration-200"
+                  >
+                    Sign Out
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link
+                    href="/auth"
+                    className="block px-4 py-2 text-white/80 hover:text-white hover:bg-white/10 transition-colors duration-200"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Sign In
+                  </Link>
+                  <Link
+                    href="/auth"
+                    className="block px-4 py-2 text-white/80 hover:text-white hover:bg-white/10 transition-colors duration-200"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Get Started Free
+                  </Link>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </nav>
+  );
+}
