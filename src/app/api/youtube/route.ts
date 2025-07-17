@@ -51,46 +51,78 @@ async function getAudioUrl(videoId: string): Promise<string | null> {
   }
 }
 
-// Transcribe audio using LemonFox API
-async function transcribeYouTubeAudio(youtubeUrl: string): Promise<any> {
-  const lemonfoxApiKey = process.env.LEMONFOX_API_KEY;
-  
-  if (!lemonfoxApiKey) {
-    throw new Error('LemonFox API key not configured');
+// Get YouTube captions/transcript
+async function getYouTubeTranscript(videoId: string): Promise<string | null> {
+  try {
+    // Method 1: Try the unofficial timedtext endpoint (works for many videos)
+    const timedTextUrl = `http://video.google.com/timedtext?lang=en&v=${videoId}`;
+    const response = await fetch(timedTextUrl);
+    
+    if (response.ok) {
+      const xmlText = await response.text();
+      // Parse the XML to extract text content
+      const textContent = xmlText.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+      if (textContent && textContent.length > 50) {
+        return textContent;
+      }
+    }
+    
+    // Method 2: Try auto-generated captions
+    const autoUrl = `http://video.google.com/timedtext?lang=en&v=${videoId}&fmt=srv3`;
+    const autoResponse = await fetch(autoUrl);
+    
+    if (autoResponse.ok) {
+      const xmlText = await autoResponse.text();
+      const textContent = xmlText.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+      if (textContent && textContent.length > 50) {
+        return textContent;
+      }
+    }
+    
+    // Method 3: Try with different language codes
+    const langCodes = ['en-US', 'en-GB', 'a.en'];
+    for (const lang of langCodes) {
+      const langUrl = `http://video.google.com/timedtext?lang=${lang}&v=${videoId}`;
+      const langResponse = await fetch(langUrl);
+      
+      if (langResponse.ok) {
+        const xmlText = await langResponse.text();
+        const textContent = xmlText.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+        if (textContent && textContent.length > 50) {
+          return textContent;
+        }
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error fetching YouTube transcript:', error);
+    return null;
   }
+}
 
-  // LemonFox requires a file upload, not a URL
-  // We need to first download the audio, then upload it
-  // For now, let's try a different approach using their URL endpoint if available
-  
-  const formData = new FormData();
-  formData.append('model', 'whisper-1');
-  formData.append('response_format', 'json');
-  
-  // Try to use the URL directly in the file field
-  const response = await fetch(youtubeUrl);
-  if (!response.ok) {
-    throw new Error('Failed to access YouTube URL');
+// Transcribe audio using either captions or LemonFox fallback
+async function transcribeYouTubeAudio(youtubeUrl: string, videoId: string): Promise<any> {
+  try {
+    // First, try to get captions/transcript directly from YouTube
+    console.log('Attempting to get YouTube captions for:', videoId);
+    const transcript = await getYouTubeTranscript(videoId);
+    
+    if (transcript) {
+      console.log('Successfully retrieved YouTube captions');
+      return {
+        text: transcript,
+        source: 'youtube_captions'
+      };
+    }
+    
+    // If no captions available, fall back to audio transcription
+    console.log('No captions available, would need audio transcription service');
+    throw new Error('No captions available for this video. Audio transcription service needed for videos without captions.');
+    
+  } catch (error) {
+    throw new Error(`Transcription failed: ${error.message}`);
   }
-  
-  // Create a blob from the response
-  const audioBlob = await response.blob();
-  formData.append('file', audioBlob, 'audio.mp4');
-
-  const transcriptionResponse = await fetch('https://api.lemonfox.ai/v1/audio/transcriptions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${lemonfoxApiKey}`,
-    },
-    body: formData,
-  });
-
-  if (!transcriptionResponse.ok) {
-    const errorText = await transcriptionResponse.text();
-    throw new Error(`LemonFox API error: ${transcriptionResponse.status} - ${errorText}`);
-  }
-
-  return await transcriptionResponse.json();
 }
 
 export async function POST(request: NextRequest) {
@@ -150,7 +182,7 @@ export async function POST(request: NextRequest) {
     if (transcribe) {
       try {
         console.log('Starting transcription for:', videoInfo.title);
-        const transcriptionResult = await transcribeYouTubeAudio(youtubeUrl);
+        const transcriptionResult = await transcribeYouTubeAudio(youtubeUrl, videoId);
         
         return NextResponse.json({
           success: true,
@@ -174,7 +206,7 @@ export async function POST(request: NextRequest) {
       message: 'Video validated successfully. Ready for transcription processing.'
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('YouTube processing error:', error);
     return NextResponse.json(
       { error: 'Internal server error during YouTube processing' },
