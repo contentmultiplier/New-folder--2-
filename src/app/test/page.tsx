@@ -43,21 +43,21 @@ export default function TestPage() {
   };
 
   const testHashtags = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const res = await fetch('/api/hashtags', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: input }),
-      });
-      const data = await res.json();
-      setResponse(data);
-    } catch (err) {
-      setError('Error testing hashtags endpoint');
-    }
-    setLoading(false);
-  };
+  setLoading(true);
+  setError('');
+  try {
+    const res = await fetch('/api/hashtags', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: input }),  // ✅ Changed 'content' to 'text'
+    });
+    const data = await res.json();
+    setResponse(data);
+  } catch (err) {
+    setError('Error testing hashtags endpoint');
+  }
+  setLoading(false);
+};
 
   // NEW: Test URL transcription with AssemblyAI
   const testUrlTranscription = async () => {
