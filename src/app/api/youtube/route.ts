@@ -178,11 +178,12 @@ async function extractYouTubeAudio(videoId: string): Promise<any> {
 
     const data = await response.json();
     
-    // Extract audio URL from the response
+    // Debug: Log the full response to see what we're getting
+    console.log('RapidAPI Response:', JSON.stringify(data, null, 2));
+    
+    // Check different possible response structures
     if (data.audios && data.audios.length > 0) {
-      // Find the best quality audio (usually the first one)
       const audioTrack = data.audios.find((audio: any) => audio.url) || data.audios[0];
-      
       return {
         audioUrl: audioTrack.url,
         quality: audioTrack.quality,
@@ -191,7 +192,33 @@ async function extractYouTubeAudio(videoId: string): Promise<any> {
       };
     }
     
-    throw new Error('No audio tracks found in video');
+    // Try alternative response structure
+    if (data.formats && data.formats.length > 0) {
+      const audioFormat = data.formats.find((format: any) => format.audio_only || format.acodec !== 'none');
+      if (audioFormat) {
+        return {
+          audioUrl: audioFormat.url,
+          quality: audioFormat.quality,
+          size: audioFormat.filesize,
+          duration: audioFormat.duration
+        };
+      }
+    }
+    
+    // Try another possible structure
+    if (data.links && data.links.length > 0) {
+      const audioLink = data.links.find((link: any) => link.type === 'audio' || link.format_note?.includes('audio'));
+      if (audioLink) {
+        return {
+          audioUrl: audioLink.url,
+          quality: audioLink.quality,
+          size: audioLink.size,
+          duration: audioLink.duration
+        };
+      }
+    }
+    
+    throw new Error(`No audio tracks found. Response structure: ${JSON.stringify(Object.keys(data))}`);
     
   } catch (error: any) {
     console.error('Audio extraction error:', error);
