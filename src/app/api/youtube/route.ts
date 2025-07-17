@@ -38,123 +38,6 @@ function parseDuration(duration: string): number {
   return hours * 3600 + minutes * 60 + seconds;
 }
 
-// Get YouTube captions/transcript
-async function getYouTubeTranscript(videoId: string): Promise<string | null> {
-  try {
-    // Method 1: Try the unofficial timedtext endpoint (works for many videos)
-    const endpoints = [
-      `https://video.google.com/timedtext?lang=en&v=${videoId}`,
-      `https://video.google.com/timedtext?lang=en&v=${videoId}&fmt=srv3`,
-      `https://video.google.com/timedtext?lang=en&v=${videoId}&fmt=srv1`,
-      `https://video.google.com/timedtext?lang=en&v=${videoId}&fmt=srv2`,
-      `https://video.google.com/timedtext?lang=en&v=${videoId}&fmt=ttml`,
-      `https://video.google.com/timedtext?lang=en&v=${videoId}&fmt=vtt`,
-      `https://video.google.com/timedtext?lang=en&v=${videoId}&tlang=en`,
-      `https://video.google.com/timedtext?lang=en-US&v=${videoId}`,
-      `https://video.google.com/timedtext?lang=en-GB&v=${videoId}`,
-      `https://video.google.com/timedtext?lang=a.en&v=${videoId}`,
-      `https://video.google.com/timedtext?lang=asr&v=${videoId}`,
-      `https://video.google.com/timedtext?v=${videoId}&lang=en&name=`,
-      `https://video.google.com/timedtext?v=${videoId}&lang=en&fmt=srv3&name=`,
-    ];
-    
-    for (const endpoint of endpoints) {
-      try {
-        console.log('Trying endpoint:', endpoint);
-        const response = await fetch(endpoint);
-        
-        if (response.ok) {
-          const textContent = await response.text();
-          console.log('Response length:', textContent.length);
-          console.log('First 200 chars:', textContent.substring(0, 200));
-          
-          if (textContent && textContent.length > 50 && !textContent.includes('Video unavailable')) {
-            // Parse the XML/text to extract readable content
-            let cleanText = textContent;
-            
-            // If it's XML, extract text content
-            if (textContent.includes('<text') || textContent.includes('<transcript>')) {
-              cleanText = textContent.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-            }
-            
-            // If it's JSON format, try to parse it
-            if (textContent.startsWith('{') || textContent.startsWith('[')) {
-              try {
-                const jsonData = JSON.parse(textContent);
-                if (jsonData.events) {
-                  cleanText = jsonData.events.map((event: any) => event.segs?.map((seg: any) => seg.utf8).join(' ')).join(' ');
-                }
-              } catch (e) {
-                // Not valid JSON, continue with text processing
-              }
-            }
-            
-            if (cleanText && cleanText.length > 50) {
-              console.log('Found captions with method:', endpoint);
-              return cleanText;
-            }
-          }
-        }
-      } catch (err) {
-        console.log('Failed endpoint:', endpoint, err);
-        continue;
-      }
-    }
-    
-    return null;
-  } catch (error: any) {
-    console.error('Error fetching YouTube transcript:', error);
-    return null;
-  }
-}
-
-// Transcribe audio using either captions or audio extraction + LemonFox
-async function transcribeYouTubeAudio(youtubeUrl: string, videoId: string): Promise<any> {
-  try {
-    // First, try to get captions/transcript directly from YouTube
-    console.log('Attempting to get YouTube captions for:', videoId);
-    const transcript = await getYouTubeTranscript(videoId);
-    
-    if (transcript) {
-      console.log('Successfully retrieved YouTube captions');
-      return {
-        text: transcript,
-        source: 'youtube_captions'
-      };
-    }
-    
-    // If no captions available, use audio extraction + transcription
-    console.log('No captions available, using audio transcription');
-    
-    const lemonfoxApiKey = process.env.LEMONFOX_API_KEY;
-    if (!lemonfoxApiKey) {
-      throw new Error('LemonFox API key not configured');
-    }
-    
-    // Use RapidAPI YouTube Audio Extractor + LemonFox transcription
-    const audioExtractionResult = await extractYouTubeAudio(videoId);
-    
-    if (audioExtractionResult.audioUrl) {
-      console.log('Audio extracted successfully, starting transcription...');
-      const transcriptionResult = await transcribeAudioUrl(audioExtractionResult.audioUrl, lemonfoxApiKey);
-      return {
-        text: transcriptionResult.text,
-        source: 'audio_transcription',
-        audioInfo: {
-          quality: audioExtractionResult.quality,
-          size: audioExtractionResult.size,
-          duration: audioExtractionResult.duration
-        }
-      };
-    }
-    
-    throw new Error('Could not extract audio from YouTube video');
-    
-  } catch (error: any) {
-    throw new Error(`Transcription failed: ${error?.message || 'Unknown error'}`);
-  }
-}
-
 // Extract audio URL from YouTube video using RapidAPI
 async function extractYouTubeAudio(videoId: string): Promise<any> {
   const rapidApiKey = process.env.RAPIDAPI_KEY;
@@ -178,47 +61,28 @@ async function extractYouTubeAudio(videoId: string): Promise<any> {
 
     const data = await response.json();
     
-    // Debug: Log the full response to see what we're getting
-    console.log('RapidAPI Response:', JSON.stringify(data, null, 2));
-    
-    // Check different possible response structures
-    if (data.audios && data.audios.length > 0) {
-      const audioTrack = data.audios.find((audio: any) => audio.url) || data.audios[0];
-      return {
-        audioUrl: audioTrack.url,
-        quality: audioTrack.quality,
-        size: audioTrack.size,
-        duration: audioTrack.duration
-      };
-    }
-    
-    // Try alternative response structure
-    if (data.formats && data.formats.length > 0) {
-      const audioFormat = data.formats.find((format: any) => format.audio_only || format.acodec !== 'none');
-      if (audioFormat) {
+    // Check the correct structure: data.audios.items (not data.audios directly)
+    if (data.audios && data.audios.items && data.audios.items.length > 0) {
+      // Find the best quality audio - prefer MP4 format over WebM for better compatibility
+      const mp4Audio = data.audios.items.find((audio: any) => 
+        audio.mimeType && audio.mimeType.includes('audio/mp4') && audio.url
+      );
+      
+      const bestAudio = mp4Audio || data.audios.items.find((audio: any) => audio.url);
+      
+      if (bestAudio) {
         return {
-          audioUrl: audioFormat.url,
-          quality: audioFormat.quality,
-          size: audioFormat.filesize,
-          duration: audioFormat.duration
+          audioUrl: bestAudio.url,
+          mimeType: bestAudio.mimeType,
+          extension: bestAudio.extension,
+          size: bestAudio.size,
+          sizeText: bestAudio.sizeText,
+          duration: bestAudio.lengthMs
         };
       }
     }
     
-    // Try another possible structure
-    if (data.links && data.links.length > 0) {
-      const audioLink = data.links.find((link: any) => link.type === 'audio' || link.format_note?.includes('audio'));
-      if (audioLink) {
-        return {
-          audioUrl: audioLink.url,
-          quality: audioLink.quality,
-          size: audioLink.size,
-          duration: audioLink.duration
-        };
-      }
-    }
-    
-    throw new Error(`No audio tracks found. Response structure: ${JSON.stringify(Object.keys(data))}`);
+    throw new Error('No audio tracks found in video response');
     
   } catch (error: any) {
     console.error('Audio extraction error:', error);
@@ -262,6 +126,41 @@ async function transcribeAudioUrl(audioUrl: string, lemonfoxApiKey: string): Pro
   } catch (error: any) {
     console.error('Audio transcription error:', error);
     throw new Error(`Failed to transcribe audio: ${error?.message || 'Unknown error'}`);
+  }
+}
+
+// Transcribe audio using either captions or audio extraction + LemonFox
+async function transcribeYouTubeAudio(youtubeUrl: string, videoId: string): Promise<any> {
+  try {
+    // Skip caption attempts for now and go straight to audio transcription
+    console.log('No captions available, using audio transcription');
+    
+    const lemonfoxApiKey = process.env.LEMONFOX_API_KEY;
+    if (!lemonfoxApiKey) {
+      throw new Error('LemonFox API key not configured');
+    }
+    
+    // Use RapidAPI YouTube Audio Extractor + LemonFox transcription
+    const audioExtractionResult = await extractYouTubeAudio(videoId);
+    
+    if (audioExtractionResult.audioUrl) {
+      console.log('Audio extracted successfully, starting transcription...');
+      const transcriptionResult = await transcribeAudioUrl(audioExtractionResult.audioUrl, lemonfoxApiKey);
+      return {
+        text: transcriptionResult.text,
+        source: 'audio_transcription',
+        audioInfo: {
+          mimeType: audioExtractionResult.mimeType,
+          size: audioExtractionResult.sizeText,
+          duration: audioExtractionResult.duration
+        }
+      };
+    }
+    
+    throw new Error('Could not extract audio from YouTube video');
+    
+  } catch (error: any) {
+    throw new Error(`Transcription failed: ${error?.message || 'Unknown error'}`);
   }
 }
 
@@ -329,6 +228,7 @@ export async function POST(request: NextRequest) {
           videoInfo,
           transcription: transcriptionResult.text || transcriptionResult,
           transcriptionSource: transcriptionResult.source || 'unknown',
+          audioInfo: transcriptionResult.audioInfo,
           message: 'Video processed and transcribed successfully'
         });
       } catch (transcriptionError: any) {
