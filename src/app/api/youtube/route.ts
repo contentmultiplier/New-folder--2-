@@ -62,18 +62,18 @@ async function extractYouTubeAudio(videoId: string): Promise<any> {
     const data = await response.json();
     
     if (data.audios && data.audios.items && data.audios.items.length > 0) {
-      // Find the best quality audio - prefer MP4 format over WebM for better compatibility
+      // Find the best quality audio - prefer MP4 format for better compatibility
       const mp4Audio = data.audios.items.find((audio: any) => 
         audio.mimeType && audio.mimeType.includes('audio/mp4') && audio.url
       );
       
-      const bestAudio = mp4Audio || data.audios.items.find((audio: any) => audio.url);
+      const bestAudio = mp4Audio || data.audios.items[0];
       
-      if (bestAudio) {
+      if (bestAudio && bestAudio.url) {
         return {
           audioUrl: bestAudio.url,
-          mimeType: bestAudio.mimeType,
-          extension: bestAudio.extension,
+          mimeType: bestAudio.mimeType || 'audio/mp4',
+          extension: bestAudio.extension || 'm4a',
           size: bestAudio.size,
           sizeText: bestAudio.sizeText,
           duration: bestAudio.lengthMs
@@ -89,93 +89,43 @@ async function extractYouTubeAudio(videoId: string): Promise<any> {
   }
 }
 
-// Try multiple audio URLs with different approaches
-async function downloadAudioWithRetries(audioUrls: string[], maxSizeMB: number = 50): Promise<ArrayBuffer> {
-  const maxSize = maxSizeMB * 1024 * 1024;
-  
-  for (let i = 0; i < audioUrls.length; i++) {
-    const url = audioUrls[i];
-    console.log(`Trying audio URL ${i + 1}/${audioUrls.length}:`, url.substring(0, 100) + '...');
-    
-    try {
-      // Create AbortController for timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-      
-      const response = await fetch(url, {
-        method: 'GET',
-        signal: controller.signal,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': '*/*',
-          'Accept-Language': 'en-US,en;q=0.9',
-          'Accept-Encoding': 'identity',
-          'Range': `bytes=0-${maxSize - 1}`, // Limit download size
-          'Connection': 'keep-alive',
-          'Sec-Fetch-Dest': 'audio',
-          'Sec-Fetch-Mode': 'no-cors',
-          'Sec-Fetch-Site': 'cross-site'
-        }
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (response.ok) {
-        console.log(`Audio URL ${i + 1} responded with status:`, response.status);
-        const contentLength = response.headers.get('content-length');
-        console.log('Content-Length:', contentLength);
-        
-        const audioBuffer = await response.arrayBuffer();
-        
-        if (audioBuffer.byteLength > 0) {
-          console.log(`Successfully downloaded ${audioBuffer.byteLength} bytes from URL ${i + 1}`);
-          return audioBuffer;
-        } else {
-          console.log(`URL ${i + 1} returned empty buffer, trying next...`);
-        }
-      } else {
-        console.log(`URL ${i + 1} failed with status:`, response.status, response.statusText);
-      }
-      
-    } catch (error: any) {
-      console.log(`URL ${i + 1} failed with error:`, error.message);
-      if (i === audioUrls.length - 1) {
-        throw error; // Re-throw if this was the last URL
-      }
-    }
-  }
-  
-  throw new Error('All audio URLs failed to download');
-}
-
-// Transcribe audio from URL using LemonFox with retry logic
-async function transcribeAudioUrl(audioData: any, lemonfoxApiKey: string): Promise<any> {
+// Download audio from YouTube URL and send to LemonFox for transcription
+async function transcribeYouTubeAudio(audioUrl: string, lemonfoxApiKey: string): Promise<any> {
   try {
-    console.log('Starting audio download and transcription...');
+    console.log('Downloading audio from YouTube URL...');
     
-    // Prepare multiple audio URLs to try
-    const audioUrls: string[] = [];
+    // Download the audio file from YouTube
+    const audioResponse = await fetch(audioUrl, {
+      method: 'GET',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': '*/*',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'identity',
+        'Connection': 'keep-alive',
+        'Sec-Fetch-Dest': 'audio',
+        'Sec-Fetch-Mode': 'no-cors',
+        'Sec-Fetch-Site': 'cross-site'
+      }
+    });
     
-    // Add the primary audio URL
-    if (audioData.audioUrl) {
-      audioUrls.push(audioData.audioUrl);
+    if (!audioResponse.ok) {
+      throw new Error(`Failed to download audio: ${audioResponse.status} ${audioResponse.statusText}`);
     }
     
-    if (audioUrls.length === 0) {
-      throw new Error('No audio URLs available for download');
+    console.log('Audio downloaded successfully');
+    
+    const audioBuffer = await audioResponse.arrayBuffer();
+    
+    if (audioBuffer.byteLength === 0) {
+      throw new Error('Downloaded audio file is empty');
     }
     
-    // Try to download audio with retries
-    const audioBuffer = await downloadAudioWithRetries(audioUrls);
+    console.log('Audio buffer size:', audioBuffer.byteLength, 'bytes');
     
-    console.log('Audio downloaded successfully, preparing for transcription...');
-    
-    // Prepare form data for LemonFox
+    // Prepare form data for LemonFox API
     const formData = new FormData();
-    const mimeType = audioData.mimeType || 'audio/mp4';
-    const extension = audioData.extension || 'mp4';
-    
-    formData.append('file', new Blob([audioBuffer], { type: mimeType }), `audio.${extension}`);
+    formData.append('file', new Blob([audioBuffer], { type: 'audio/mp4' }), 'audio.mp4');
     formData.append('model', 'whisper-1');
     formData.append('response_format', 'json');
     
@@ -206,37 +156,38 @@ async function transcribeAudioUrl(audioData: any, lemonfoxApiKey: string): Promi
   }
 }
 
-// Transcribe audio using audio extraction + LemonFox
-async function transcribeYouTubeAudio(youtubeUrl: string, videoId: string): Promise<any> {
+// Main transcription function
+async function transcribeYouTubeVideo(youtubeUrl: string, videoId: string): Promise<any> {
   try {
-    console.log('Starting audio transcription for video:', videoId);
+    console.log('Starting transcription for video:', videoId);
     
     const lemonfoxApiKey = process.env.LEMONFOX_API_KEY;
     if (!lemonfoxApiKey) {
       throw new Error('LemonFox API key not configured');
     }
     
-    // Use RapidAPI YouTube Audio Extractor + LemonFox transcription
-    const audioExtractionResult = await extractYouTubeAudio(videoId);
+    // Extract audio URL using RapidAPI
+    const audioData = await extractYouTubeAudio(videoId);
     
-    if (audioExtractionResult.audioUrl) {
-      console.log('Audio extracted successfully, starting transcription...');
-      const transcriptionResult = await transcribeAudioUrl(audioExtractionResult, lemonfoxApiKey);
+    if (audioData.audioUrl) {
+      console.log('Audio URL extracted successfully, starting transcription...');
+      const transcriptionResult = await transcribeYouTubeAudio(audioData.audioUrl, lemonfoxApiKey);
+      
       return {
         text: transcriptionResult.text,
-        source: 'audio_transcription',
+        source: 'youtube_audio_transcription',
         audioInfo: {
-          mimeType: audioExtractionResult.mimeType,
-          size: audioExtractionResult.sizeText,
-          duration: audioExtractionResult.duration
+          mimeType: audioData.mimeType,
+          size: audioData.sizeText,
+          duration: audioData.duration
         }
       };
     }
     
-    throw new Error('Could not extract audio from YouTube video');
+    throw new Error('Could not extract audio URL from YouTube video');
     
   } catch (error: any) {
-    throw new Error(`Transcription failed: ${error?.message || 'Unknown error'}`);
+    throw new Error(`YouTube transcription failed: ${error?.message || 'Unknown error'}`);
   }
 }
 
@@ -297,13 +248,13 @@ export async function POST(request: NextRequest) {
     if (transcribe) {
       try {
         console.log('Starting transcription for:', videoInfo.title);
-        const transcriptionResult = await transcribeYouTubeAudio(youtubeUrl, videoId);
+        const transcriptionResult = await transcribeYouTubeVideo(youtubeUrl, videoId);
         
         return NextResponse.json({
           success: true,
           videoInfo,
-          transcription: transcriptionResult.text || transcriptionResult,
-          transcriptionSource: transcriptionResult.source || 'unknown',
+          transcription: transcriptionResult.text,
+          transcriptionSource: transcriptionResult.source,
           audioInfo: transcriptionResult.audioInfo,
           message: 'Video processed and transcribed successfully'
         });
