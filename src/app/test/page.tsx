@@ -1,298 +1,238 @@
 'use client';
-
 import { useState } from 'react';
 
 export default function TestPage() {
-  const [textInput, setTextInput] = useState('');
+  const [input, setInput] = useState('');
+  const [youtubeUrl, setYoutubeUrl] = useState('');
   const [file, setFile] = useState<File | null>(null);
+  const [response, setResponse] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState<any>(null);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState('complete');
 
-  // Test complete workflow
-  const testCompleteWorkflow = async () => {
+  const testProcess = async () => {
     setLoading(true);
     setError('');
-    setResults(null);
-
     try {
-      let response;
-
-      if (file) {
-        // Test with file upload
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('generateHashtags', 'true');
-
-        response = await fetch('/api/process', {
-          method: 'POST',
-          body: formData,
-        });
-      } else if (textInput.trim()) {
-        // Test with text input
-        response = await fetch('/api/process', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            text: textInput,
-            generateHashtags: true,
-          }),
-        });
-      } else {
-        setError('Please provide either text input or upload a file');
-        setLoading(false);
-        return;
-      }
-
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Request failed');
-      }
-
-      setResults(data);
-    } catch (err: any) {
-      setError(err.message || 'An error occurred');
-    } finally {
-      setLoading(false);
+      const res = await fetch('/api/process', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: input }),
+      });
+      const data = await res.json();
+      setResponse(data);
+    } catch (err) {
+      setError('Error testing process endpoint');
     }
+    setLoading(false);
   };
 
-  // Test individual repurpose API
+  const testYouTube = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch('/api/youtube', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ youtubeUrl }),
+      });
+      const data = await res.json();
+      setResponse(data);
+    } catch (err) {
+      setError('Error testing YouTube endpoint');
+    }
+    setLoading(false);
+  };
+
   const testRepurpose = async () => {
-    if (!textInput.trim()) {
-      setError('Please enter some text');
-      return;
-    }
-
     setLoading(true);
     setError('');
-    setResults(null);
-
     try {
-      const response = await fetch('/api/repurpose', {
+      const res = await fetch('/api/repurpose', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ text: textInput }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: input }),
       });
-
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Request failed');
-      }
-
-      setResults(data);
-    } catch (err: any) {
-      setError(err.message || 'An error occurred');
-    } finally {
-      setLoading(false);
+      const data = await res.json();
+      setResponse(data);
+    } catch (err) {
+      setError('Error testing repurpose endpoint');
     }
+    setLoading(false);
   };
 
-  // Test hashtag generation API
   const testHashtags = async () => {
-    if (!textInput.trim()) {
-      setError('Please enter some text');
-      return;
-    }
-
     setLoading(true);
     setError('');
-    setResults(null);
-
     try {
-      const response = await fetch('/api/hashtags', {
+      const res = await fetch('/api/hashtags', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          text: textInput,
-          platforms: ['twitter', 'linkedin', 'instagram', 'facebook', 'youtube']
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: input }),
       });
-
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Request failed');
-      }
-
-      setResults(data);
-    } catch (err: any) {
-      setError(err.message || 'An error occurred');
-    } finally {
-      setLoading(false);
+      const data = await res.json();
+      setResponse(data);
+    } catch (err) {
+      setError('Error testing hashtags endpoint');
     }
+    setLoading(false);
   };
 
-  // Test transcription API
-  const testTranscription = async () => {
+  const testTranscribe = async () => {
     if (!file) {
-      setError('Please select an audio or video file');
+      setError('Please select a file first');
       return;
     }
 
     setLoading(true);
     setError('');
-    setResults(null);
-
     try {
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('audio', file);
 
-      const response = await fetch('/api/transcribe', {
+      const res = await fetch('/api/transcribe', {
         method: 'POST',
         body: formData,
       });
-
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Request failed');
-      }
-
-      setResults(data);
-    } catch (err: any) {
-      setError(err.message || 'An error occurred');
-    } finally {
-      setLoading(false);
+      const data = await res.json();
+      setResponse(data);
+    } catch (err) {
+      setError('Error testing transcribe endpoint');
     }
+    setLoading(false);
+  };
+
+  const clearResults = () => {
+    setResponse(null);
+    setError('');
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4">
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-8">
-            ContentMux API Test Interface
-          </h1>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 p-8">
+      <div className="max-w-4xl mx-auto">
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-white mb-2">ContentMux API Test Center</h1>
+          <p className="text-gray-300">Test all API endpoints including new YouTube integration</p>
+        </div>
 
-          {/* Tab Navigation */}
-          <div className="flex space-x-1 mb-6">
-            {[
-              { id: 'complete', label: 'Complete Workflow' },
-              { id: 'repurpose', label: 'Repurpose Only' },
-              { id: 'hashtags', label: 'Hashtags Only' },
-              { id: 'transcribe', label: 'Transcribe Only' },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-2 rounded-md font-medium ${
-                  activeTab === tab.id
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Input Section */}
-          <div className="space-y-4 mb-6">
+        {/* YouTube URL Testing Section */}
+        <div className="premium-card mb-8">
+          <h2 className="text-2xl font-semibold text-white mb-4">🎥 YouTube URL Processing</h2>
+          <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Text Input
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                YouTube URL
               </label>
-              <textarea
-                value={textInput}
-                onChange={(e) => setTextInput(e.target.value)}
-                placeholder="Enter your content here..."
-                className="w-full h-32 p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              <input
+                type="url"
+                value={youtubeUrl}
+                onChange={(e) => setYoutubeUrl(e.target.value)}
+                placeholder="https://www.youtube.com/watch?v=..."
+                className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:border-purple-500 focus:outline-none"
               />
             </div>
+            <button
+              onClick={testYouTube}
+              disabled={loading || !youtubeUrl}
+              className="premium-button disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? 'Processing...' : 'Test YouTube Processing'}
+            </button>
+          </div>
+        </div>
 
+        {/* Text Content Testing Section */}
+        <div className="premium-card mb-8">
+          <h2 className="text-2xl font-semibold text-white mb-4">📝 Text Content Processing</h2>
+          <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                File Upload (Audio/Video)
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Content to Process
+              </label>
+              <textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Enter your content here..."
+                className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:border-purple-500 focus:outline-none"
+                rows={4}
+              />
+            </div>
+            <div className="flex gap-4 flex-wrap">
+              <button
+                onClick={testProcess}
+                disabled={loading || !input}
+                className="premium-button disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? 'Processing...' : 'Test Full Process'}
+              </button>
+              <button
+                onClick={testRepurpose}
+                disabled={loading || !input}
+                className="premium-button disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? 'Processing...' : 'Test Repurpose Only'}
+              </button>
+              <button
+                onClick={testHashtags}
+                disabled={loading || !input}
+                className="premium-button disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? 'Processing...' : 'Test Hashtags Only'}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* File Upload Testing Section */}
+        <div className="premium-card mb-8">
+          <h2 className="text-2xl font-semibold text-white mb-4">🎵 Audio/Video File Transcription</h2>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Audio/Video File (Max 20MB)
               </label>
               <input
                 type="file"
-                accept="audio/*,video/*"
                 onChange={(e) => setFile(e.target.files?.[0] || null)}
-                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                accept="audio/*,video/*"
+                className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:border-purple-500 focus:outline-none"
               />
-              {file && (
-                <p className="text-sm text-gray-600 mt-1">
-                  Selected: {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
-                </p>
-              )}
             </div>
+            <button
+              onClick={testTranscribe}
+              disabled={loading || !file}
+              className="premium-button disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? 'Transcribing...' : 'Test Transcription'}
+            </button>
           </div>
-
-          {/* Action Buttons */}
-          <div className="mb-6">
-            {activeTab === 'complete' && (
-              <button
-                onClick={testCompleteWorkflow}
-                disabled={loading || (!textInput.trim() && !file)}
-                className="w-full bg-blue-500 text-white py-3 px-6 rounded-md font-medium hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
-              >
-                {loading ? 'Processing...' : 'Test Complete Workflow'}
-              </button>
-            )}
-
-            {activeTab === 'repurpose' && (
-              <button
-                onClick={testRepurpose}
-                disabled={loading || !textInput.trim()}
-                className="w-full bg-green-500 text-white py-3 px-6 rounded-md font-medium hover:bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
-              >
-                {loading ? 'Processing...' : 'Test Content Repurposing'}
-              </button>
-            )}
-
-            {activeTab === 'hashtags' && (
-              <button
-                onClick={testHashtags}
-                disabled={loading || !textInput.trim()}
-                className="w-full bg-purple-500 text-white py-3 px-6 rounded-md font-medium hover:bg-purple-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
-              >
-                {loading ? 'Processing...' : 'Test Hashtag Generation'}
-              </button>
-            )}
-
-            {activeTab === 'transcribe' && (
-              <button
-                onClick={testTranscription}
-                disabled={loading || !file}
-                className="w-full bg-orange-500 text-white py-3 px-6 rounded-md font-medium hover:bg-orange-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
-              >
-                {loading ? 'Processing...' : 'Test Transcription'}
-              </button>
-            )}
-          </div>
-
-          {/* Error Display */}
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
-              <div className="flex">
-                <div className="text-red-800">
-                  <h3 className="text-sm font-medium">Error</h3>
-                  <p className="text-sm mt-1">{error}</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Results Display */}
-          {results && (
-            <div className="bg-green-50 border border-green-200 rounded-md p-4">
-              <h3 className="text-lg font-medium text-green-800 mb-3">Results</h3>
-              <pre className="text-sm text-green-700 overflow-auto bg-white p-3 rounded border">
-                {JSON.stringify(results, null, 2)}
-              </pre>
-            </div>
-          )}
         </div>
+
+        {/* Results Section */}
+        {(response || error) && (
+          <div className="premium-card">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-semibold text-white">Results</h2>
+              <button
+                onClick={clearResults}
+                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+              >
+                Clear Results
+              </button>
+            </div>
+            {error && (
+              <div className="bg-red-900 border border-red-700 text-red-100 px-4 py-3 rounded-lg mb-4">
+                <strong>Error:</strong> {error}
+              </div>
+            )}
+            {response && (
+              <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 overflow-auto">
+                <pre className="text-green-300 whitespace-pre-wrap">
+                  {JSON.stringify(response, null, 2)}
+                </pre>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
