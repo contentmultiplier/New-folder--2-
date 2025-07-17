@@ -59,10 +59,18 @@ Original content: ${originalContent}`
     });
 
     const firstContent = message.content[0];
-    const response = firstContent.type === 'text' ? firstContent.text : '';
-    return JSON.parse(response);
+    let response = firstContent.type === 'text' ? firstContent.text : '';
+    
+    // Clean up the response - remove markdown code blocks if present
+    response = response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    
+    console.log('Claude response:', response); // Debug log
+    
+    const parsed = JSON.parse(response);
+    return parsed;
   } catch (error) {
     console.error('Content repurposing error:', error);
+    console.error('Raw response:', message?.content?.[0]);
     throw new Error('Failed to repurpose content');
   }
 }
@@ -97,10 +105,18 @@ Content: ${content}`
     });
 
     const firstContent = message.content[0];
-    const response = firstContent.type === 'text' ? firstContent.text : '';
-    return JSON.parse(response);
+    let response = firstContent.type === 'text' ? firstContent.text : '';
+    
+    // Clean up the response - remove markdown code blocks if present
+    response = response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    
+    console.log('Hashtags response:', response); // Debug log
+    
+    const parsed = JSON.parse(response);
+    return parsed;
   } catch (error) {
     console.error('Hashtag generation error:', error);
+    console.error('Raw response:', message?.content?.[0]);
     throw new Error('Failed to generate hashtags');
   }
 }
