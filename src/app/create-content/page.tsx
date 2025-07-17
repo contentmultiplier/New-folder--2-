@@ -210,32 +210,119 @@ export default function CreateContentPage() {
     }
   };
 
+  // File upload workflow (System 1) → Text extraction
+  const handleFileUpload = async (): Promise<string> => {
+    if (!selectedFile) throw new Error('No file selected');
+
+    try {
+      // Step 1: Get upload URL
+      addProgress('get-upload-url', 'processing', 'Getting upload URL...');
+      addDebugLog('Requesting upload URL from API...');
+      
+      const uploadUrlResponse = await fetch('/api/cloud-upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'get-upload-url',
+          fileName: selectedFile.name,
+          fileType: selectedFile.type,
+          fileSizeBytes: selectedFile.size,
+        }),
+      });
+
+      const uploadUrlData = await uploadUrlResponse.json();
+      addDebugLog(`Upload URL API response: ${JSON.stringify(uploadUrlData, null, 2)}`);
+      
+      if (!uploadUrlData.success) {
+        throw new Error(uploadUrlData.error);
+      }
+
+      addProgress('get-upload-url', 'completed', 'Upload URL generated');
+      const { uploadUrl, fileKey: newFileKey } = uploadUrlData.data;
+      setFileKey(newFileKey);
+      addDebugLog(`Generated file key: ${newFileKey}`);
+
+      // Step 2: Upload file to cloud
+      addProgress('upload', 'processing', `Uploading ${selectedFile.name}...`);
+      const uploadStart = Date.now();
+      
+      await uploadWithDetailedLogging(uploadUrl, selectedFile);
+
+      const uploadDuration = Date.now() - uploadStart;
+      addProgress('upload', 'completed', `File uploaded successfully (${Math.round(uploadDuration/1000)}s)`, uploadDuration);
+      addDebugLog(`Upload completed in ${uploadDuration}ms`);
+
+      // Step 3: Wait for file availability
+      addProgress('prepare', 'processing', 'Preparing file for processing...');
+      addDebugLog('Waiting for file to be available in cloud storage...');
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      addProgress('prepare', 'completed', 'File ready for processing');
+
+      // Step 4: Transcribe file (System 1)
+      addProgress('transcribe', 'processing', 'Transcribing content...');
+      const transcribeStart = Date.now();
+      addDebugLog('Starting file transcription...');
+      
+      const processResponse = await fetch('/api/cloud-upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'process-file',
+          fileKey: newFileKey,
+        }),
+      });
+
+      const processData = await processResponse.json();
+      addDebugLog(`Transcription API response: ${JSON.stringify(processData, null, 2)}`);
+      
+      if (!processData.success) {
+        throw new Error(processData.error);
+      }
+
+      const transcribeDuration = Date.now() - transcribeStart;
+      addProgress('transcribe', 'completed', `Transcription completed (${Math.round(transcribeDuration/1000)}s)`, transcribeDuration);
+      addDebugLog(`Transcription completed in ${transcribeDuration}ms`);
+
+      // Return the transcribed text for System 2 processing
+      return processData.data.transcription.text;
+
+    } catch (error: any) {
+      throw new Error(`File processing failed: ${error.message}`);
+    }
+  };
+
   // System 2 Content Processing (Advanced Claude APIs)
   const processContentWithSystem2 = async (content: string) => {
     addProgress('process', 'processing', 'Processing with advanced AI intelligence...');
     const processStart = Date.now();
     
     try {
+      // Use the same API call format as the working test page
       const res = await fetch('/api/process', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content: content }),
       });
       
       if (!res.ok) {
-        throw new Error(`API error: ${res.status}`);
+        const errorText = await res.text();
+        addDebugLog(`API Error Response: ${errorText}`);
+        throw new Error(`API error ${res.status}: ${errorText}`);
       }
       
       const data = await res.json();
       const processDuration = Date.now() - processStart;
       
       addProgress('process', 'completed', `AI processing completed (${Math.round(processDuration/1000)}s)`, processDuration);
+      addDebugLog(`System 2 processing successful: ${JSON.stringify(data, null, 2)}`);
       
       return data;
     } catch (error: any) {
+      addDebugLog(`System 2 processing error: ${error.message}`);
       throw new Error(`Content processing failed: ${error.message}`);
     }
   };
+  
   // Main processing function
   const handleProcess = async () => {
     if (processing) return;
@@ -265,7 +352,7 @@ export default function CreateContentPage() {
       } else {
         // File upload workflow → transcription → text
         addDebugLog('Starting file upload and transcription workflow');
-        contentToProcess = await processFileUpload();
+        contentToProcess = await handleFileUpload();
         addDebugLog(`Transcribed text length: ${contentToProcess.length} characters`);
       }
 
@@ -334,6 +421,7 @@ export default function CreateContentPage() {
     if (selectedTab === 'file') return selectedFile !== null;
     return false;
   };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 p-8">
       <div className="max-w-4xl mx-auto">
