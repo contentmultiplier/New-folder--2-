@@ -1,184 +1,269 @@
-import { NextRequest, NextResponse } from 'next/server';
+'use client';
+import { useState } from 'react';
 
-// YouTube URL validation function
-function isValidYouTubeUrl(url: string): boolean {
-  const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com\/(watch\?v=|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
-  return youtubeRegex.test(url);
-}
+export default function TestPage() {
+  const [input, setInput] = useState('');
+  const [youtubeUrl, setYoutubeUrl] = useState('');
+  const [transcribeYoutube, setTranscribeYoutube] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [response, setResponse] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-// Extract video ID from YouTube URL
-function extractVideoId(url: string): string | null {
-  const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/)([a-zA-Z0-9_-]{11})/);
-  return match ? match[1] : null;
-}
+  const testProcess = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch('/api/process', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: input }),
+      });
+      const data = await res.json();
+      setResponse(data);
+    } catch (err) {
+      setError('Error testing process endpoint');
+    }
+    setLoading(false);
+  };
 
-// Get video metadata from YouTube Data API
-async function getVideoMetadata(videoId: string) {
-  const apiKey = process.env.YOUTUBE_API_KEY;
-  const url = `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&id=${videoId}&key=${apiKey}`;
-  
-  const response = await fetch(url);
-  const data = await response.json();
-  
-  if (data.items && data.items.length > 0) {
-    return data.items[0];
-  }
-  return null;
-}
+  const testYouTube = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch('/api/youtube', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          youtubeUrl,
+          transcribe: transcribeYoutube 
+        }),
+      });
+      const data = await res.json();
+      setResponse(data);
+    } catch (err) {
+      setError('Error testing YouTube endpoint');
+    }
+    setLoading(false);
+  };
 
-// Convert YouTube duration to seconds
-function parseDuration(duration: string): number {
-  const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
-  if (!match) return 0;
-  
-  const hours = parseInt(match[1] || '0');
-  const minutes = parseInt(match[2] || '0');
-  const seconds = parseInt(match[3] || '0');
-  
-  return hours * 3600 + minutes * 60 + seconds;
-}
+  const testRepurpose = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch('/api/repurpose', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: input }),
+      });
+      const data = await res.json();
+      setResponse(data);
+    } catch (err) {
+      setError('Error testing repurpose endpoint');
+    }
+    setLoading(false);
+  };
 
-// Get audio download URL using yt-dlp format
-async function getAudioUrl(videoId: string): Promise<string | null> {
-  try {
-    // For now, we'll use a YouTube audio stream URL pattern
-    // In production, you'd want to use yt-dlp or similar service
-    const audioUrl = `https://www.youtube.com/watch?v=${videoId}`;
-    return audioUrl;
-  } catch (error) {
-    console.error('Error getting audio URL:', error);
-    return null;
-  }
-}
+  const testHashtags = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch('/api/hashtags', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: input }),
+      });
+      const data = await res.json();
+      setResponse(data);
+    } catch (err) {
+      setError('Error testing hashtags endpoint');
+    }
+    setLoading(false);
+  };
 
-// Transcribe audio using LemonFox API
-async function transcribeYouTubeAudio(youtubeUrl: string): Promise<any> {
-  const lemonfoxApiKey = process.env.LEMONFOX_API_KEY;
-  
-  if (!lemonfoxApiKey) {
-    throw new Error('LemonFox API key not configured');
-  }
-
-  // LemonFox requires a file upload, not a URL
-  // We need to first download the audio, then upload it
-  // For now, let's try a different approach using their URL endpoint if available
-  
-  const formData = new FormData();
-  formData.append('model', 'whisper-1');
-  formData.append('response_format', 'json');
-  
-  // Try to use the URL directly in the file field
-  const response = await fetch(youtubeUrl);
-  if (!response.ok) {
-    throw new Error('Failed to access YouTube URL');
-  }
-  
-  // Create a blob from the response
-  const audioBlob = await response.blob();
-  formData.append('file', audioBlob, 'audio.mp4');
-
-  const transcriptionResponse = await fetch('https://api.lemonfox.ai/v1/audio/transcriptions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${lemonfoxApiKey}`,
-    },
-    body: formData,
-  });
-
-  if (!transcriptionResponse.ok) {
-    const errorText = await transcriptionResponse.text();
-    throw new Error(`LemonFox API error: ${transcriptionResponse.status} - ${errorText}`);
-  }
-
-  return await transcriptionResponse.json();
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    const { youtubeUrl, transcribe = false } = await request.json();
-
-    // Validate YouTube URL
-    if (!youtubeUrl || !isValidYouTubeUrl(youtubeUrl)) {
-      return NextResponse.json(
-        { error: 'Invalid YouTube URL provided' },
-        { status: 400 }
-      );
+  const testTranscribe = async () => {
+    if (!file) {
+      setError('Please select a file first');
+      return;
     }
 
-    // Extract video ID
-    const videoId = extractVideoId(youtubeUrl);
-    if (!videoId) {
-      return NextResponse.json(
-        { error: 'Could not extract video ID from URL' },
-        { status: 400 }
-      );
+    setLoading(true);
+    setError('');
+    try {
+      const formData = new FormData();
+      formData.append('audio', file);
+
+      const res = await fetch('/api/transcribe', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      setResponse(data);
+    } catch (err) {
+      setError('Error testing transcribe endpoint');
     }
+    setLoading(false);
+  };
 
-    // Get video metadata
-    const videoData = await getVideoMetadata(videoId);
-    if (!videoData) {
-      return NextResponse.json(
-        { error: 'Video not found or is private/unavailable' },
-        { status: 404 }
-      );
-    }
+  const clearResults = () => {
+    setResponse(null);
+    setError('');
+  };
 
-    // Check video duration (optional limit)
-    const durationSeconds = parseDuration(videoData.contentDetails.duration);
-    const maxDurationHours = 4; // 4 hour limit
-    
-    if (durationSeconds > maxDurationHours * 3600) {
-      return NextResponse.json(
-        { error: `Video is too long. Maximum duration is ${maxDurationHours} hours.` },
-        { status: 400 }
-      );
-    }
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 p-8">
+      <div className="max-w-4xl mx-auto">
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-white mb-2">ContentMux API Test Center</h1>
+          <p className="text-gray-300">Test all API endpoints including new YouTube integration</p>
+        </div>
 
-    // Prepare video info
-    const videoInfo = {
-      id: videoId,
-      title: videoData.snippet.title,
-      description: videoData.snippet.description,
-      duration: durationSeconds,
-      url: youtubeUrl,
-      thumbnail: videoData.snippet.thumbnails.high?.url || videoData.snippet.thumbnails.default?.url,
-      channelTitle: videoData.snippet.channelTitle,
-      publishedAt: videoData.snippet.publishedAt
-    };
+        {/* YouTube URL Testing Section */}
+        <div className="premium-card mb-8">
+          <h2 className="text-2xl font-semibold text-white mb-4">🎥 YouTube URL Processing</h2>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                YouTube URL
+              </label>
+              <input
+                type="url"
+                value={youtubeUrl}
+                onChange={(e) => setYoutubeUrl(e.target.value)}
+                placeholder="https://www.youtube.com/watch?v=..."
+                className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:border-purple-500 focus:outline-none"
+              />
+            </div>
+            
+            {/* Transcription Toggle */}
+            <div className="flex items-center space-x-3">
+              <input
+                type="checkbox"
+                id="transcribe-toggle"
+                checked={transcribeYoutube}
+                onChange={(e) => setTranscribeYoutube(e.target.checked)}
+                className="w-4 h-4 text-purple-600 bg-gray-800 border-gray-600 rounded focus:ring-purple-500"
+              />
+              <label htmlFor="transcribe-toggle" className="text-sm text-gray-300">
+                Also transcribe audio to text (will take longer)
+              </label>
+            </div>
+            
+            <div className="flex gap-4">
+              <button
+                onClick={testYouTube}
+                disabled={loading || !youtubeUrl}
+                className="premium-button disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? (transcribeYoutube ? 'Processing & Transcribing...' : 'Processing...') : 'Test YouTube Processing'}
+              </button>
+            </div>
+            
+            {transcribeYoutube && (
+              <div className="bg-blue-900 border border-blue-700 text-blue-100 px-4 py-3 rounded-lg">
+                <p className="text-sm">
+                  <strong>Note:</strong> Transcription will take longer for longer videos. 
+                  Please be patient during processing.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
 
-    // If transcription is requested, process the audio
-    if (transcribe) {
-      try {
-        console.log('Starting transcription for:', videoInfo.title);
-        const transcriptionResult = await transcribeYouTubeAudio(youtubeUrl);
-        
-        return NextResponse.json({
-          success: true,
-          videoInfo,
-          transcription: transcriptionResult.text || transcriptionResult,
-          message: 'Video processed and transcribed successfully'
-        });
-      } catch (transcriptionError: any) {
-        console.error('Transcription error:', transcriptionError);
-        return NextResponse.json(
-          { error: `Transcription failed: ${transcriptionError?.message || 'Unknown error'}` },
-          { status: 500 }
-        );
-      }
-    }
+        {/* Text Content Testing Section */}
+        <div className="premium-card mb-8">
+          <h2 className="text-2xl font-semibold text-white mb-4">📝 Text Content Processing</h2>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Content to Process
+              </label>
+              <textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Enter your content here..."
+                className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:border-purple-500 focus:outline-none"
+                rows={4}
+              />
+            </div>
+            <div className="flex gap-4 flex-wrap">
+              <button
+                onClick={testProcess}
+                disabled={loading || !input}
+                className="premium-button disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? 'Processing...' : 'Test Full Process'}
+              </button>
+              <button
+                onClick={testRepurpose}
+                disabled={loading || !input}
+                className="premium-button disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? 'Processing...' : 'Test Repurpose Only'}
+              </button>
+              <button
+                onClick={testHashtags}
+                disabled={loading || !input}
+                className="premium-button disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? 'Processing...' : 'Test Hashtags Only'}
+              </button>
+            </div>
+          </div>
+        </div>
 
-    // Return video info only if transcription not requested
-    return NextResponse.json({
-      success: true,
-      videoInfo,
-      message: 'Video validated successfully. Ready for transcription processing.'
-    });
+        {/* File Upload Testing Section */}
+        <div className="premium-card mb-8">
+          <h2 className="text-2xl font-semibold text-white mb-4">🎵 Audio/Video File Transcription</h2>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Audio/Video File (Max 20MB)
+              </label>
+              <input
+                type="file"
+                onChange={(e) => setFile(e.target.files?.[0] || null)}
+                accept="audio/*,video/*"
+                className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:border-purple-500 focus:outline-none"
+              />
+            </div>
+            <button
+              onClick={testTranscribe}
+              disabled={loading || !file}
+              className="premium-button disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? 'Transcribing...' : 'Test Transcription'}
+            </button>
+          </div>
+        </div>
 
-  } catch (error) {
-    console.error('YouTube processing error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error during YouTube processing' },
-      { status: 500 }
-    );
-  }
+        {/* Results Section */}
+        {(response || error) && (
+          <div className="premium-card">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-semibold text-white">Results</h2>
+              <button
+                onClick={clearResults}
+                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+              >
+                Clear Results
+              </button>
+            </div>
+            {error && (
+              <div className="bg-red-900 border border-red-700 text-red-100 px-4 py-3 rounded-lg mb-4">
+                <strong>Error:</strong> {error}
+              </div>
+            )}
+            {response && (
+              <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 overflow-auto">
+                <pre className="text-green-300 whitespace-pre-wrap">
+                  {JSON.stringify(response, null, 2)}
+                </pre>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }

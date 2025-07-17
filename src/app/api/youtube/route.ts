@@ -59,12 +59,25 @@ async function transcribeYouTubeAudio(youtubeUrl: string): Promise<any> {
     throw new Error('LemonFox API key not configured');
   }
 
-  // Create form data for LemonFox API
+  // LemonFox requires a file upload, not a URL
+  // We need to first download the audio, then upload it
+  // For now, let's try a different approach using their URL endpoint if available
+  
   const formData = new FormData();
-  formData.append('url', youtubeUrl);
+  formData.append('model', 'whisper-1');
   formData.append('response_format', 'json');
+  
+  // Try to use the URL directly in the file field
+  const response = await fetch(youtubeUrl);
+  if (!response.ok) {
+    throw new Error('Failed to access YouTube URL');
+  }
+  
+  // Create a blob from the response
+  const audioBlob = await response.blob();
+  formData.append('file', audioBlob, 'audio.mp4');
 
-  const response = await fetch('https://api.lemonfox.ai/v1/audio/transcriptions', {
+  const transcriptionResponse = await fetch('https://api.lemonfox.ai/v1/audio/transcriptions', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${lemonfoxApiKey}`,
@@ -72,12 +85,12 @@ async function transcribeYouTubeAudio(youtubeUrl: string): Promise<any> {
     body: formData,
   });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`LemonFox API error: ${response.status} - ${errorText}`);
+  if (!transcriptionResponse.ok) {
+    const errorText = await transcriptionResponse.text();
+    throw new Error(`LemonFox API error: ${transcriptionResponse.status} - ${errorText}`);
   }
 
-  return await response.json();
+  return await transcriptionResponse.json();
 }
 
 export async function POST(request: NextRequest) {
