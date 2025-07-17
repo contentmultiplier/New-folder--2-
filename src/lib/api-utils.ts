@@ -38,8 +38,10 @@ export interface TranscriptionResult {
 
 // 1. CLAUDE CONTENT REPURPOSING
 export async function repurposeContent(originalContent: string): Promise<ContentRepurposeResult> {
+  let message: any = null;
+  
   try {
-    const message = await anthropicContent.messages.create({
+    message = await anthropicContent.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 2000,
       messages: [{
@@ -70,15 +72,19 @@ Original content: ${originalContent}`
     return parsed;
   } catch (error) {
     console.error('Content repurposing error:', error);
-    console.error('Raw response:', message?.content?.[0]);
+    if (message?.content?.[0]) {
+      console.error('Raw response:', message.content[0]);
+    }
     throw new Error('Failed to repurpose content');
   }
 }
 
 // 2. CLAUDE HASHTAG RESEARCH
 export async function generateHashtags(content: string, platforms: string[]): Promise<HashtagResult> {
+  let message: any = null;
+  
   try {
-    const message = await anthropicHashtags.messages.create({
+    message = await anthropicHashtags.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 1000,
       messages: [{
@@ -116,7 +122,9 @@ Content: ${content}`
     return parsed;
   } catch (error) {
     console.error('Hashtag generation error:', error);
-    console.error('Raw response:', message?.content?.[0]);
+    if (message?.content?.[0]) {
+      console.error('Raw response:', message.content[0]);
+    }
     throw new Error('Failed to generate hashtags');
   }
 }
