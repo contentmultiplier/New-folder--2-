@@ -40,7 +40,7 @@ export interface TranscriptionResult {
 export async function repurposeContent(originalContent: string): Promise<ContentRepurposeResult> {
   try {
     const message = await anthropicContent.messages.create({
-      model: 'claude-3-sonnet-20240229',
+      model: 'claude-sonnet-4-20250514',
       max_tokens: 2000,
       messages: [{
         role: 'user',
@@ -71,7 +71,7 @@ Original content: ${originalContent}`
 export async function generateHashtags(content: string, platforms: string[]): Promise<HashtagResult> {
   try {
     const message = await anthropicHashtags.messages.create({
-      model: 'claude-3-sonnet-20240229',
+      model: 'claude-sonnet-4-20250514',
       max_tokens: 1000,
       messages: [{
         role: 'user',
