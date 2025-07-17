@@ -1,8 +1,93 @@
 // ContentMux Transcription API Route
-// Updated to use AssemblyAI for URL-based and file-based transcription
+// Updated to handle YouTube URLs and direct audio URLs with AssemblyAI
 
 import { NextRequest, NextResponse } from 'next/server';
 import { transcribeFromUrl, transcribeAudioFile } from '@/lib/api-utils';
+
+// YouTube helper functions (inline to avoid import issues)
+function isYouTubeUrl(url: string): boolean {
+  const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com\/(watch\?v=|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+  return youtubeRegex.test(url);
+}
+
+function extractYouTubeVideoId(url: string): string | null {
+  const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/)([a-zA-Z0-9_-]{11})/);
+  return match ? match[1] : null;
+}
+
+async function extractYouTubeAudioUrl(videoId: string): Promise<string | null> {
+  try {
+    if (!process.env.RAPIDAPI_KEY) {
+      throw new Error('RapidAPI key not configured. Please add RAPIDAPI_KEY to environment variables.');
+    }
+
+    const response = await fetch(`https://youtube-media-downloader.p.rapidapi.com/v2/video/details?videoId=${videoId}`, {
+      headers: {
+        'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
+        'X-RapidAPI-Host': 'youtube-media-downloader.p.rapidapi.com'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`RapidAPI request failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (data.audios?.items?.length > 0) {
+      const mp4Audio = data.audios.items.find((audio: any) => 
+        audio.mimeType?.includes('audio/mp4') && audio.url
+      );
+      
+      const bestAudio = mp4Audio || data.audios.items.find((audio: any) => 
+        audio.mimeType?.includes('audio') && audio.url
+      ) || data.audios.items[0];
+      
+      if (bestAudio?.url) {
+        console.log('Found audio stream:', {
+          mimeType: bestAudio.mimeType,
+          size: bestAudio.sizeText,
+          extension: bestAudio.extension
+        });
+        return bestAudio.url;
+      }
+    }
+    
+    throw new Error('No audio streams found in video');
+    
+  } catch (error: any) {
+    console.error('Error extracting YouTube audio URL:', error);
+    throw error;
+  }
+}
+
+function detectUrlType(url: string): 'youtube' | 'direct_audio' | 'unsupported' {
+  if (isYouTubeUrl(url)) {
+    return 'youtube';
+  }
+  
+  const audioExtensions = ['.mp3', '.wav', '.m4a', '.aac', '.flac', '.ogg', '.mp4', '.webm'];
+  const lowercaseUrl = url.toLowerCase();
+  
+  if (audioExtensions.some(ext => lowercaseUrl.includes(ext))) {
+    return 'direct_audio';
+  }
+  
+  const directAudioDomains = [
+    'soundcloud.com',
+    'anchor.fm', 
+    'podcasts.apple.com',
+    'overcast.fm',
+    'buzzsprout.com',
+    'libsyn.com'
+  ];
+  
+  if (directAudioDomains.some(domain => url.includes(domain))) {
+    return 'direct_audio';
+  }
+  
+  return 'unsupported';
+}
 
 // Helper function to validate URLs
 function isValidUrl(string: string): boolean {
@@ -74,35 +159,109 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Check if it's a supported platform (optional warning)
-      if (!isSupportedPlatform(url)) {
-        console.warn('URL may not be from a supported platform:', url);
-      }
-
-      // Process URL transcription
-      const result = await transcribeFromUrl(url);
+      // Detect URL type and handle accordingly
+      const urlType = detectUrlType(url);
       
-      if (!result.success) {
+      if (urlType === 'youtube') {
+        // Handle YouTube URLs specially
+        console.log('Processing YouTube URL:', url);
+        
+        const videoId = extractYouTubeVideoId(url);
+        if (!videoId) {
+          return NextResponse.json(
+            { error: 'Could not extract video ID from YouTube URL' },
+            { status: 400 }
+          );
+        }
+
+        try {
+          const audioUrl = await extractYouTubeAudioUrl(videoId);
+          
+          if (!audioUrl) {
+            return NextResponse.json(
+              { 
+                error: 'Could not extract audio stream from YouTube video. The video may be private, restricted, or unavailable.',
+                success: false 
+              },
+              { status: 400 }
+            );
+          }
+          
+          // Now transcribe the extracted audio URL
+          const result = await transcribeFromUrl(audioUrl);
+          
+          if (!result.success) {
+            return NextResponse.json(
+              { 
+                error: result.error || 'YouTube audio transcription failed',
+                success: false 
+              },
+              { status: 500 }
+            );
+          }
+
+          return NextResponse.json({
+            success: true,
+            data: {
+              text: result.text,
+              audioUrl: audioUrl,
+              originalUrl: url,
+              videoId: videoId,
+              confidence: result.confidence,
+              wordCount: result.words,
+              transcriptionMethod: 'youtube_extraction'
+            },
+            message: 'YouTube video transcribed successfully'
+          });
+
+        } catch (youtubeError: any) {
+          return NextResponse.json(
+            { 
+              error: youtubeError.message || 'Failed to extract audio from YouTube video',
+              success: false 
+            },
+            { status: 400 }
+          );
+        }
+
+      } else if (urlType === 'direct_audio') {
+        // Handle direct audio URLs
+        console.log('Processing direct audio URL:', url);
+        
+        const result = await transcribeFromUrl(url);
+        
+        if (!result.success) {
+          return NextResponse.json(
+            { 
+              error: result.error || 'Direct URL transcription failed',
+              success: false 
+            },
+            { status: 500 }
+          );
+        }
+
+        return NextResponse.json({
+          success: true,
+          data: {
+            text: result.text,
+            audioUrl: result.audioUrl,
+            confidence: result.confidence,
+            wordCount: result.words,
+            transcriptionMethod: 'direct_url'
+          },
+          message: 'Audio URL transcribed successfully'
+        });
+
+      } else {
+        // Unsupported URL type
         return NextResponse.json(
           { 
-            error: result.error || 'URL transcription failed',
+            error: 'Unsupported URL type. Please provide a YouTube URL or direct audio file URL.',
             success: false 
           },
-          { status: 500 }
+          { status: 400 }
         );
       }
-
-      return NextResponse.json({
-        success: true,
-        data: {
-          text: result.text,
-          audioUrl: result.audioUrl,
-          confidence: result.confidence,
-          wordCount: result.words,
-          transcriptionMethod: 'url'
-        },
-        message: 'URL transcribed successfully'
-      });
     }
 
     // Handle FormData requests (file-based transcription)

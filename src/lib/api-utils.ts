@@ -1,5 +1,5 @@
 // ContentMux API Utility Functions
-// Updated to use AssemblyAI for URL-based transcription
+// Complete file with AssemblyAI integration for URL-based transcription
 
 import Anthropic from '@anthropic-ai/sdk';
 import { AssemblyAI } from 'assemblyai';
@@ -44,7 +44,7 @@ export interface TranscriptionResult {
   words?: number;
 }
 
-// 1. CLAUDE CONTENT REPURPOSING (unchanged)
+// 1. CLAUDE CONTENT REPURPOSING
 export async function repurposeContent(originalContent: string): Promise<ContentRepurposeResult> {
   let message: any = null;
   
@@ -87,7 +87,7 @@ Original content: ${originalContent}`
   }
 }
 
-// 2. CLAUDE HASHTAG RESEARCH (unchanged)
+// 2. CLAUDE HASHTAG RESEARCH
 export async function generateHashtags(content: string, platforms: string[]): Promise<HashtagResult> {
   let message: any = null;
   
