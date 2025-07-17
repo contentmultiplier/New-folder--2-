@@ -27,6 +27,23 @@ export default function TestPage() {
     setLoading(false);
   };
 
+  const testYouTubeDebug = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch('/api/youtube-debug', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ youtubeUrl }),
+      });
+      const data = await res.json();
+      setResponse(data);
+    } catch (err) {
+      setError('Error testing YouTube debug endpoint');
+    }
+    setLoading(false);
+  };
+
   const testYouTube = async () => {
     setLoading(true);
     setError('');
@@ -156,6 +173,14 @@ export default function TestPage() {
                 className="premium-button disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (transcribeYoutube ? 'Processing & Transcribing...' : 'Processing...') : 'Test YouTube Processing'}
+              </button>
+              
+              <button
+                onClick={testYouTubeDebug}
+                disabled={loading || !youtubeUrl}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? 'Debugging...' : 'Debug RapidAPI Response'}
               </button>
             </div>
             
