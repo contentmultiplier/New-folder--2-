@@ -108,7 +108,7 @@ async function getYouTubeTranscript(videoId: string): Promise<string | null> {
   }
 }
 
-// Transcribe audio using either captions or LemonFox fallback
+// Transcribe audio using either captions or audio extraction + LemonFox
 async function transcribeYouTubeAudio(youtubeUrl: string, videoId: string): Promise<any> {
   try {
     // First, try to get captions/transcript directly from YouTube
@@ -123,12 +123,118 @@ async function transcribeYouTubeAudio(youtubeUrl: string, videoId: string): Prom
       };
     }
     
-    // If no captions available, fall back to audio transcription
-    console.log('No captions available, would need audio transcription service');
-    throw new Error('No captions available for this video. Audio transcription service needed for videos without captions.');
+    // If no captions available, use audio extraction + transcription
+    console.log('No captions available, using audio transcription');
+    
+    const lemonfoxApiKey = process.env.LEMONFOX_API_KEY;
+    if (!lemonfoxApiKey) {
+      throw new Error('LemonFox API key not configured');
+    }
+    
+    // Use RapidAPI YouTube Audio Extractor + LemonFox transcription
+    const audioExtractionResult = await extractYouTubeAudio(videoId);
+    
+    if (audioExtractionResult.audioUrl) {
+      console.log('Audio extracted successfully, starting transcription...');
+      const transcriptionResult = await transcribeAudioUrl(audioExtractionResult.audioUrl, lemonfoxApiKey);
+      return {
+        text: transcriptionResult.text,
+        source: 'audio_transcription',
+        audioInfo: {
+          quality: audioExtractionResult.quality,
+          size: audioExtractionResult.size,
+          duration: audioExtractionResult.duration
+        }
+      };
+    }
+    
+    throw new Error('Could not extract audio from YouTube video');
     
   } catch (error: any) {
     throw new Error(`Transcription failed: ${error?.message || 'Unknown error'}`);
+  }
+}
+
+// Extract audio URL from YouTube video using RapidAPI
+async function extractYouTubeAudio(videoId: string): Promise<any> {
+  const rapidApiKey = process.env.RAPIDAPI_KEY;
+  
+  if (!rapidApiKey) {
+    throw new Error('RapidAPI key not configured');
+  }
+
+  try {
+    const response = await fetch(`https://youtube-media-downloader.p.rapidapi.com/v2/video/details?videoId=${videoId}&urlAccess=normal&videos=auto&audios=auto`, {
+      method: 'GET',
+      headers: {
+        'x-rapidapi-key': rapidApiKey,
+        'x-rapidapi-host': 'youtube-media-downloader.p.rapidapi.com'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`RapidAPI request failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    // Extract audio URL from the response
+    if (data.audios && data.audios.length > 0) {
+      // Find the best quality audio (usually the first one)
+      const audioTrack = data.audios.find((audio: any) => audio.url) || data.audios[0];
+      
+      return {
+        audioUrl: audioTrack.url,
+        quality: audioTrack.quality,
+        size: audioTrack.size,
+        duration: audioTrack.duration
+      };
+    }
+    
+    throw new Error('No audio tracks found in video');
+    
+  } catch (error: any) {
+    console.error('Audio extraction error:', error);
+    throw new Error(`Failed to extract audio: ${error?.message || 'Unknown error'}`);
+  }
+}
+
+// Transcribe audio from URL using LemonFox
+async function transcribeAudioUrl(audioUrl: string, lemonfoxApiKey: string): Promise<any> {
+  try {
+    // Download the audio file
+    const audioResponse = await fetch(audioUrl);
+    if (!audioResponse.ok) {
+      throw new Error(`Failed to download audio: ${audioResponse.status}`);
+    }
+    
+    const audioBuffer = await audioResponse.arrayBuffer();
+    
+    // Prepare form data for LemonFox
+    const formData = new FormData();
+    formData.append('file', new Blob([audioBuffer]), 'audio.mp3');
+    formData.append('model', 'whisper-1');
+    formData.append('response_format', 'json');
+    
+    // Send to LemonFox for transcription
+    const transcriptionResponse = await fetch('https://api.lemonfox.ai/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${lemonfoxApiKey}`,
+      },
+      body: formData,
+    });
+    
+    if (!transcriptionResponse.ok) {
+      const errorText = await transcriptionResponse.text();
+      throw new Error(`LemonFox transcription failed: ${transcriptionResponse.status} - ${errorText}`);
+    }
+    
+    return await transcriptionResponse.json();
+    
+  } catch (error: any) {
+    console.error('Audio transcription error:', error);
+    throw new Error(`Failed to transcribe audio: ${error?.message || 'Unknown error'}`);
   }
 }
 
