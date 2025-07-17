@@ -1,8 +1,8 @@
 // ContentMux API Utility Functions
-// Handles all three API integrations: Claude Content, Claude Hashtags, LemonFox Transcription
+// Updated to use AssemblyAI for URL-based transcription
 
 import Anthropic from '@anthropic-ai/sdk';
-import axios from 'axios';
+import { AssemblyAI } from 'assemblyai';
 
 // Initialize Anthropic clients
 const anthropicContent = new Anthropic({
@@ -11,6 +11,11 @@ const anthropicContent = new Anthropic({
 
 const anthropicHashtags = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY_HASHTAGS,
+});
+
+// Initialize AssemblyAI client
+const assemblyAI = new AssemblyAI({
+  apiKey: process.env.ASSEMBLYAI_API_KEY!,
 });
 
 // Types for our API responses
@@ -34,9 +39,12 @@ export interface TranscriptionResult {
   text: string;
   success: boolean;
   error?: string;
+  audioUrl?: string;
+  confidence?: number | null;
+  words?: number;
 }
 
-// 1. CLAUDE CONTENT REPURPOSING
+// 1. CLAUDE CONTENT REPURPOSING (unchanged)
 export async function repurposeContent(originalContent: string): Promise<ContentRepurposeResult> {
   let message: any = null;
   
@@ -66,7 +74,7 @@ Original content: ${originalContent}`
     // Clean up the response - remove markdown code blocks if present
     response = response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     
-    console.log('Claude response:', response); // Debug log
+    console.log('Claude content response:', response);
     
     const parsed = JSON.parse(response);
     return parsed;
@@ -79,7 +87,7 @@ Original content: ${originalContent}`
   }
 }
 
-// 2. CLAUDE HASHTAG RESEARCH
+// 2. CLAUDE HASHTAG RESEARCH (unchanged)
 export async function generateHashtags(content: string, platforms: string[]): Promise<HashtagResult> {
   let message: any = null;
   
@@ -116,7 +124,7 @@ Content: ${content}`
     // Clean up the response - remove markdown code blocks if present
     response = response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     
-    console.log('Hashtags response:', response); // Debug log
+    console.log('Claude hashtags response:', response);
     
     const parsed = JSON.parse(response);
     return parsed;
@@ -129,42 +137,95 @@ Content: ${content}`
   }
 }
 
-// 3. LEMONFOX TRANSCRIPTION
-export async function transcribeAudio(audioFile: File): Promise<TranscriptionResult> {
+// 3. ASSEMBLYAI TRANSCRIPTION (Using Official SDK)
+export async function transcribeFromUrl(audioUrl: string): Promise<TranscriptionResult> {
   try {
-    // Create FormData for file upload
-    const formData = new FormData();
-    formData.append('file', audioFile);
-    formData.append('model', 'whisper-1');
-    formData.append('response_format', 'json');
+    console.log('Starting AssemblyAI transcription for URL:', audioUrl);
 
-    const response = await axios.post(
-      process.env.LEMONFOX_API_URL || 'https://api.lemonfox.ai/v1/audio/transcriptions',
-      formData,
-      {
-        headers: {
-          'Authorization': `Bearer ${process.env.LEMONFOX_API_KEY}`,
-          'Content-Type': 'multipart/form-data',
-        },
-        timeout: 300000, // 5 minutes timeout for large files
-      }
-    );
-
-    return {
-      text: response.data.text,
-      success: true,
+    const params = {
+      audio: audioUrl,
+      speech_model: 'universal' as const, // Best quality model
+      language_detection: true,
+      punctuate: true,
+      format_text: true,
+      disfluencies: false, // Remove "uh", "um", etc.
     };
+
+    const transcript = await assemblyAI.transcripts.transcribe(params);
+
+    if (transcript.status === 'error') {
+      throw new Error(transcript.error || 'Transcription failed');
+    }
+
+    if (transcript.text) {
+      return {
+        text: transcript.text,
+        success: true,
+        audioUrl: audioUrl,
+        confidence: transcript.confidence || null,
+        words: transcript.words?.length || 0,
+      };
+    } else {
+      throw new Error('No transcription text received');
+    }
+
   } catch (error: any) {
-    console.error('Transcription error:', error);
+    console.error('AssemblyAI transcription error:', error);
+    
     return {
       text: '',
       success: false,
-      error: error.response?.data?.error || 'Transcription failed',
+      error: error.message || 'Transcription failed',
     };
   }
 }
 
-// 4. COMPLETE WORKFLOW: Audio/Video → Text → Repurposed Content → Hashtags
+// 4. FILE-BASED TRANSCRIPTION (Using Official SDK)
+export async function transcribeAudioFile(audioFile: File): Promise<TranscriptionResult> {
+  try {
+    console.log('Processing file with AssemblyAI:', audioFile.name);
+
+    // Convert File to Buffer for AssemblyAI
+    const arrayBuffer = await audioFile.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    const params = {
+      audio: buffer,
+      speech_model: 'universal' as const,
+      language_detection: true,
+      punctuate: true,
+      format_text: true,
+      disfluencies: false,
+    };
+
+    const transcript = await assemblyAI.transcripts.transcribe(params);
+
+    if (transcript.status === 'error') {
+      throw new Error(transcript.error || 'File transcription failed');
+    }
+
+    if (transcript.text) {
+      return {
+        text: transcript.text,
+        success: true,
+        confidence: transcript.confidence || null,
+        words: transcript.words?.length || 0,
+      };
+    } else {
+      throw new Error('No transcription text received');
+    }
+
+  } catch (error: any) {
+    console.error('File transcription error:', error);
+    return {
+      text: '',
+      success: false,
+      error: error.message || 'File transcription failed',
+    };
+  }
+}
+
+// 5. COMPLETE WORKFLOW: URL/File → Text → Repurposed Content → Hashtags
 export async function processCompleteWorkflow(
   input: string | File,
   generateHashtagsFlag: boolean = true
@@ -178,14 +239,25 @@ export async function processCompleteWorkflow(
     let originalText: string;
     let transcription: TranscriptionResult | undefined;
 
-    // Step 1: Get text content (either from input or transcription)
+    // Step 1: Get text content
     if (typeof input === 'string') {
-      originalText = input;
+      // Check if it's a URL or plain text
+      if (isValidUrl(input)) {
+        // It's a URL - transcribe it
+        transcription = await transcribeFromUrl(input);
+        if (!transcription.success) {
+          throw new Error(transcription.error || 'Transcription failed');
+        }
+        originalText = transcription.text;
+      } else {
+        // It's plain text
+        originalText = input;
+      }
     } else {
-      // File input - transcribe first
-      transcription = await transcribeAudio(input);
+      // File input - transcribe via file upload
+      transcription = await transcribeAudioFile(input);
       if (!transcription.success) {
-        throw new Error(transcription.error || 'Transcription failed');
+        throw new Error(transcription.error || 'File transcription failed');
       }
       originalText = transcription.text;
     }
@@ -208,5 +280,15 @@ export async function processCompleteWorkflow(
   } catch (error) {
     console.error('Complete workflow error:', error);
     throw error;
+  }
+}
+
+// Helper function to validate URLs
+function isValidUrl(string: string): boolean {
+  try {
+    new URL(string);
+    return true;
+  } catch (_) {
+    return false;
   }
 }
