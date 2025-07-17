@@ -3,9 +3,7 @@ import { useState } from 'react';
 
 export default function TestPage() {
   const [input, setInput] = useState('');
-  const [youtubeUrl, setYoutubeUrl] = useState('');
-  const [transcribeYoutube, setTranscribeYoutube] = useState(false);
-  const [file, setFile] = useState<File | null>(null);
+  const [audioUrl, setAudioUrl] = useState('');
   const [response, setResponse] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -27,43 +25,6 @@ export default function TestPage() {
     setLoading(false);
   };
 
-  const testYouTubeDebug = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const res = await fetch('/api/youtube-debug', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ youtubeUrl }),
-      });
-      const data = await res.json();
-      setResponse(data);
-    } catch (err) {
-      setError('Error testing YouTube debug endpoint');
-    }
-    setLoading(false);
-  };
-
-  const testYouTube = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const res = await fetch('/api/youtube', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          youtubeUrl,
-          transcribe: transcribeYoutube 
-        }),
-      });
-      const data = await res.json();
-      setResponse(data);
-    } catch (err) {
-      setError('Error testing YouTube endpoint');
-    }
-    setLoading(false);
-  };
-
   const testRepurpose = async () => {
     setLoading(true);
     setError('');
@@ -71,7 +32,7 @@ export default function TestPage() {
       const res = await fetch('/api/repurpose', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: input }),
+        body: JSON.stringify({ text: input }),
       });
       const data = await res.json();
       setResponse(data);
@@ -98,26 +59,67 @@ export default function TestPage() {
     setLoading(false);
   };
 
-  const testTranscribe = async () => {
-    if (!file) {
-      setError('Please select a file first');
+  // NEW: Test URL transcription with AssemblyAI
+  const testUrlTranscription = async () => {
+    if (!audioUrl.trim()) {
+      setError('Please enter a URL');
       return;
     }
 
     setLoading(true);
     setError('');
     try {
-      const formData = new FormData();
-      formData.append('audio', file);
-
       const res = await fetch('/api/transcribe', {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: audioUrl.trim() }),
       });
       const data = await res.json();
       setResponse(data);
     } catch (err) {
-      setError('Error testing transcribe endpoint');
+      setError('Error testing URL transcription');
+    }
+    setLoading(false);
+  };
+
+  // NEW: Test complete workflow from URL
+  const testCompleteWorkflow = async () => {
+    if (!audioUrl.trim()) {
+      setError('Please enter a URL');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    try {
+      // First transcribe the URL
+      const transcribeRes = await fetch('/api/transcribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: audioUrl.trim() }),
+      });
+      const transcribeData = await transcribeRes.json();
+      
+      if (!transcribeRes.ok) {
+        throw new Error(transcribeData.error || 'Transcription failed');
+      }
+
+      // Then process the transcribed text
+      const processRes = await fetch('/api/process', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: transcribeData.data.text }),
+      });
+      const processData = await processRes.json();
+      
+      // Combine both results
+      setResponse({
+        transcription: transcribeData,
+        processing: processData,
+        workflow: 'URL → Transcript → Repurposed Content + Hashtags'
+      });
+    } catch (err: any) {
+      setError(err.message || 'Error testing complete workflow');
     }
     setLoading(false);
   };
@@ -132,66 +134,46 @@ export default function TestPage() {
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-white mb-2">ContentMux API Test Center</h1>
-          <p className="text-gray-300">Test all API endpoints including new YouTube integration</p>
+          <p className="text-gray-300">Test all API endpoints with URL transcription (AssemblyAI)</p>
         </div>
 
-        {/* YouTube URL Testing Section */}
+        {/* URL Transcription Section */}
         <div className="premium-card mb-8">
-          <h2 className="text-2xl font-semibold text-white mb-4">🎥 YouTube URL Processing</h2>
+          <h2 className="text-2xl font-semibold text-white mb-4">🎵 Audio/Video URL Transcription</h2>
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                YouTube URL
+                Audio/Video URL (YouTube, SoundCloud, direct audio links, etc.)
               </label>
               <input
                 type="url"
-                value={youtubeUrl}
-                onChange={(e) => setYoutubeUrl(e.target.value)}
-                placeholder="https://www.youtube.com/watch?v=..."
+                value={audioUrl}
+                onChange={(e) => setAudioUrl(e.target.value)}
+                placeholder="https://www.youtube.com/watch?v=... or https://soundcloud.com/... or direct audio URL"
                 className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:border-purple-500 focus:outline-none"
               />
             </div>
-            
-            {/* Transcription Toggle */}
-            <div className="flex items-center space-x-3">
-              <input
-                type="checkbox"
-                id="transcribe-toggle"
-                checked={transcribeYoutube}
-                onChange={(e) => setTranscribeYoutube(e.target.checked)}
-                className="w-4 h-4 text-purple-600 bg-gray-800 border-gray-600 rounded focus:ring-purple-500"
-              />
-              <label htmlFor="transcribe-toggle" className="text-sm text-gray-300">
-                Also transcribe audio to text (will take longer)
-              </label>
-            </div>
-            
-            <div className="flex gap-4">
+            <div className="flex gap-4 flex-wrap">
               <button
-                onClick={testYouTube}
-                disabled={loading || !youtubeUrl}
+                onClick={testUrlTranscription}
+                disabled={loading || !audioUrl}
                 className="premium-button disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? (transcribeYoutube ? 'Processing & Transcribing...' : 'Processing...') : 'Test YouTube Processing'}
+                {loading ? 'Transcribing...' : 'Test URL Transcription'}
               </button>
-              
               <button
-                onClick={testYouTubeDebug}
-                disabled={loading || !youtubeUrl}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={testCompleteWorkflow}
+                disabled={loading || !audioUrl}
+                className="premium-button disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Debugging...' : 'Debug RapidAPI Response'}
+                {loading ? 'Processing Full Workflow...' : 'Test Complete Workflow (URL → Content)'}
               </button>
             </div>
-            
-            {transcribeYoutube && (
-              <div className="bg-blue-900 border border-blue-700 text-blue-100 px-4 py-3 rounded-lg">
-                <p className="text-sm">
-                  <strong>Note:</strong> Transcription will take longer for longer videos. 
-                  Please be patient during processing.
-                </p>
-              </div>
-            )}
+            <div className="bg-blue-900 border border-blue-700 text-blue-100 px-4 py-3 rounded-lg">
+              <p className="text-sm">
+                <strong>Supported:</strong> YouTube, SoundCloud, Podcast URLs, Direct audio/video links (.mp3, .mp4, .wav, etc.)
+              </p>
+            </div>
           </div>
         </div>
 
@@ -234,31 +216,6 @@ export default function TestPage() {
                 {loading ? 'Processing...' : 'Test Hashtags Only'}
               </button>
             </div>
-          </div>
-        </div>
-
-        {/* File Upload Testing Section */}
-        <div className="premium-card mb-8">
-          <h2 className="text-2xl font-semibold text-white mb-4">🎵 Audio/Video File Transcription</h2>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Audio/Video File (Max 20MB)
-              </label>
-              <input
-                type="file"
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
-                accept="audio/*,video/*"
-                className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:border-purple-500 focus:outline-none"
-              />
-            </div>
-            <button
-              onClick={testTranscribe}
-              disabled={loading || !file}
-              className="premium-button disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Transcribing...' : 'Test Transcription'}
-            </button>
           </div>
         </div>
 
