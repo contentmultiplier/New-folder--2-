@@ -47,11 +47,21 @@ export async function POST(request: NextRequest) {
     // Handle text input (application/json)
     else if (contentType?.includes('application/json')) {
       const body = await request.json();
-      const { text, generateHashtags = true } = body;
+      
+      // Accept both 'text' and 'content' for backward compatibility
+      const text = body.text || body.content;
+      const generateHashtags = body.generateHashtags !== false; // Default to true
       
       if (!text || typeof text !== 'string') {
         return NextResponse.json(
-          { error: 'Text content is required' },
+          { error: 'Text content is required (send as "text" or "content" parameter)' },
+          { status: 400 }
+        );
+      }
+
+      if (text.length < 10) {
+        return NextResponse.json(
+          { error: 'Text content must be at least 10 characters long' },
           { status: 400 }
         );
       }
