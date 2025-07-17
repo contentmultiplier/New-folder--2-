@@ -42,42 +42,62 @@ function parseDuration(duration: string): number {
 async function getYouTubeTranscript(videoId: string): Promise<string | null> {
   try {
     // Method 1: Try the unofficial timedtext endpoint (works for many videos)
-    const timedTextUrl = `http://video.google.com/timedtext?lang=en&v=${videoId}`;
-    const response = await fetch(timedTextUrl);
+    const endpoints = [
+      `https://video.google.com/timedtext?lang=en&v=${videoId}`,
+      `https://video.google.com/timedtext?lang=en&v=${videoId}&fmt=srv3`,
+      `https://video.google.com/timedtext?lang=en&v=${videoId}&fmt=srv1`,
+      `https://video.google.com/timedtext?lang=en&v=${videoId}&fmt=srv2`,
+      `https://video.google.com/timedtext?lang=en&v=${videoId}&fmt=ttml`,
+      `https://video.google.com/timedtext?lang=en&v=${videoId}&fmt=vtt`,
+      `https://video.google.com/timedtext?lang=en&v=${videoId}&tlang=en`,
+      `https://video.google.com/timedtext?lang=en-US&v=${videoId}`,
+      `https://video.google.com/timedtext?lang=en-GB&v=${videoId}`,
+      `https://video.google.com/timedtext?lang=a.en&v=${videoId}`,
+      `https://video.google.com/timedtext?lang=asr&v=${videoId}`,
+      `https://video.google.com/timedtext?v=${videoId}&lang=en&name=`,
+      `https://video.google.com/timedtext?v=${videoId}&lang=en&fmt=srv3&name=`,
+    ];
     
-    if (response.ok) {
-      const xmlText = await response.text();
-      // Parse the XML to extract text content
-      const textContent = xmlText.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-      if (textContent && textContent.length > 50) {
-        return textContent;
-      }
-    }
-    
-    // Method 2: Try auto-generated captions
-    const autoUrl = `http://video.google.com/timedtext?lang=en&v=${videoId}&fmt=srv3`;
-    const autoResponse = await fetch(autoUrl);
-    
-    if (autoResponse.ok) {
-      const xmlText = await autoResponse.text();
-      const textContent = xmlText.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-      if (textContent && textContent.length > 50) {
-        return textContent;
-      }
-    }
-    
-    // Method 3: Try with different language codes
-    const langCodes = ['en-US', 'en-GB', 'a.en'];
-    for (const lang of langCodes) {
-      const langUrl = `http://video.google.com/timedtext?lang=${lang}&v=${videoId}`;
-      const langResponse = await fetch(langUrl);
-      
-      if (langResponse.ok) {
-        const xmlText = await langResponse.text();
-        const textContent = xmlText.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-        if (textContent && textContent.length > 50) {
-          return textContent;
+    for (const endpoint of endpoints) {
+      try {
+        console.log('Trying endpoint:', endpoint);
+        const response = await fetch(endpoint);
+        
+        if (response.ok) {
+          const textContent = await response.text();
+          console.log('Response length:', textContent.length);
+          console.log('First 200 chars:', textContent.substring(0, 200));
+          
+          if (textContent && textContent.length > 50 && !textContent.includes('Video unavailable')) {
+            // Parse the XML/text to extract readable content
+            let cleanText = textContent;
+            
+            // If it's XML, extract text content
+            if (textContent.includes('<text') || textContent.includes('<transcript>')) {
+              cleanText = textContent.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+            }
+            
+            // If it's JSON format, try to parse it
+            if (textContent.startsWith('{') || textContent.startsWith('[')) {
+              try {
+                const jsonData = JSON.parse(textContent);
+                if (jsonData.events) {
+                  cleanText = jsonData.events.map((event: any) => event.segs?.map((seg: any) => seg.utf8).join(' ')).join(' ');
+                }
+              } catch (e) {
+                // Not valid JSON, continue with text processing
+              }
+            }
+            
+            if (cleanText && cleanText.length > 50) {
+              console.log('Found captions with method:', endpoint);
+              return cleanText;
+            }
+          }
         }
+      } catch (err) {
+        console.log('Failed endpoint:', endpoint, err);
+        continue;
       }
     }
     
