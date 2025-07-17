@@ -4,6 +4,7 @@ import { useState } from 'react';
 export default function TestPage() {
   const [input, setInput] = useState('');
   const [youtubeUrl, setYoutubeUrl] = useState('');
+  const [transcribeYoutube, setTranscribeYoutube] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [response, setResponse] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -33,7 +34,10 @@ export default function TestPage() {
       const res = await fetch('/api/youtube', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ youtubeUrl }),
+        body: JSON.stringify({ 
+          youtubeUrl,
+          transcribe: transcribeYoutube 
+        }),
       });
       const data = await res.json();
       setResponse(data);
@@ -130,13 +134,39 @@ export default function TestPage() {
                 className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:border-purple-500 focus:outline-none"
               />
             </div>
-            <button
-              onClick={testYouTube}
-              disabled={loading || !youtubeUrl}
-              className="premium-button disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Processing...' : 'Test YouTube Processing'}
-            </button>
+            
+            {/* Transcription Toggle */}
+            <div className="flex items-center space-x-3">
+              <input
+                type="checkbox"
+                id="transcribe-toggle"
+                checked={transcribeYoutube}
+                onChange={(e) => setTranscribeYoutube(e.target.checked)}
+                className="w-4 h-4 text-purple-600 bg-gray-800 border-gray-600 rounded focus:ring-purple-500"
+              />
+              <label htmlFor="transcribe-toggle" className="text-sm text-gray-300">
+                Also transcribe audio to text (will take longer)
+              </label>
+            </div>
+            
+            <div className="flex gap-4">
+              <button
+                onClick={testYouTube}
+                disabled={loading || !youtubeUrl}
+                className="premium-button disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? (transcribeYoutube ? 'Processing & Transcribing...' : 'Processing...') : 'Test YouTube Processing'}
+              </button>
+            </div>
+            
+            {transcribeYoutube && (
+              <div className="bg-blue-900 border border-blue-700 text-blue-100 px-4 py-3 rounded-lg">
+                <p className="text-sm">
+                  <strong>Note:</strong> Transcription will take longer for longer videos. 
+                  Please be patient during processing.
+                </p>
+              </div>
+            )}
           </div>
         </div>
 

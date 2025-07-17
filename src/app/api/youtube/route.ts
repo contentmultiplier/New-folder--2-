@@ -38,9 +38,51 @@ function parseDuration(duration: string): number {
   return hours * 3600 + minutes * 60 + seconds;
 }
 
+// Get audio download URL using yt-dlp format
+async function getAudioUrl(videoId: string): Promise<string | null> {
+  try {
+    // For now, we'll use a YouTube audio stream URL pattern
+    // In production, you'd want to use yt-dlp or similar service
+    const audioUrl = `https://www.youtube.com/watch?v=${videoId}`;
+    return audioUrl;
+  } catch (error) {
+    console.error('Error getting audio URL:', error);
+    return null;
+  }
+}
+
+// Transcribe audio using LemonFox API
+async function transcribeYouTubeAudio(youtubeUrl: string): Promise<any> {
+  const lemonfoxApiKey = process.env.LEMONFOX_API_KEY;
+  
+  if (!lemonfoxApiKey) {
+    throw new Error('LemonFox API key not configured');
+  }
+
+  // Create form data for LemonFox API
+  const formData = new FormData();
+  formData.append('url', youtubeUrl);
+  formData.append('response_format', 'json');
+
+  const response = await fetch('https://api.lemonfox.ai/v1/audio/transcriptions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${lemonfoxApiKey}`,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`LemonFox API error: ${response.status} - ${errorText}`);
+  }
+
+  return await response.json();
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const { youtubeUrl } = await request.json();
+    const { youtubeUrl, transcribe = false } = await request.json();
 
     // Validate YouTube URL
     if (!youtubeUrl || !isValidYouTubeUrl(youtubeUrl)) {
@@ -79,7 +121,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Prepare video info for transcription
+    // Prepare video info
     const videoInfo = {
       id: videoId,
       title: videoData.snippet.title,
@@ -91,8 +133,28 @@ export async function POST(request: NextRequest) {
       publishedAt: videoData.snippet.publishedAt
     };
 
-    // For now, we'll return the video info
-    // In the next step, we'll add the actual audio extraction and transcription
+    // If transcription is requested, process the audio
+    if (transcribe) {
+      try {
+        console.log('Starting transcription for:', videoInfo.title);
+        const transcriptionResult = await transcribeYouTubeAudio(youtubeUrl);
+        
+        return NextResponse.json({
+          success: true,
+          videoInfo,
+          transcription: transcriptionResult.text || transcriptionResult,
+          message: 'Video processed and transcribed successfully'
+        });
+      } catch (transcriptionError: any) {
+        console.error('Transcription error:', transcriptionError);
+        return NextResponse.json(
+          { error: `Transcription failed: ${transcriptionError?.message || 'Unknown error'}` },
+          { status: 500 }
+        );
+      }
+    }
+
+    // Return video info only if transcription not requested
     return NextResponse.json({
       success: true,
       videoInfo,
