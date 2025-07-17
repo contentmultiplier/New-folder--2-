@@ -4,7 +4,7 @@ import { Inter } from 'next/font/google'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata = {
-  title: 'ContentMultiplier - AI-Powered Content Repurposing',
+  title: 'ContentMux - AI-Powered Content Repurposing',
   description: 'Transform one piece of content into multiple platform-optimized formats. Save 15+ hours per week with AI-powered content repurposing.',
 }
 

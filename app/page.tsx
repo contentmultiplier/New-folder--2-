@@ -6,7 +6,7 @@ export default function Home() {
       {/* Header */}
       <header className="bg-blue-600 text-white p-4">
         <div className="max-w-6xl mx-auto">
-          <h1 className="text-2xl font-bold">ContentMultiplier</h1>
+          <h1 className="text-2xl font-bold">ContentMux</h1>
           <p className="text-blue-100">AI-Powered Content Repurposing</p>
         </div>
       </header>
@@ -58,7 +58,7 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="bg-gray-100 text-center py-4 mt-8">
-        <p className="text-gray-600">© 2024 ContentMultiplier - Built with Next.js</p>
+        <p className="text-gray-600">© 2024 ContentMux - Built with Next.js</p>
       </footer>
     </div>
   )
