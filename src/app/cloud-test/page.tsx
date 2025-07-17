@@ -16,6 +16,13 @@ export default function CloudTestPage() {
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState('');
   const [fileKey, setFileKey] = useState('');
+  const [debugLogs, setDebugLogs] = useState<string[]>([]);
+
+  const addDebugLog = (message: string) => {
+    const timestamp = new Date().toLocaleTimeString();
+    setDebugLogs(prev => [...prev, `[${timestamp}] ${message}`]);
+    console.log(`[DEBUG] ${message}`);
+  };
 
   const addProgress = (step: string, status: ProcessingStep['status'], message?: string, duration?: number) => {
     setProgress(prev => {
@@ -37,6 +44,7 @@ export default function CloudTestPage() {
     setResult(null);
     setError('');
     setFileKey('');
+    setDebugLogs([]);
   };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -44,6 +52,71 @@ export default function CloudTestPage() {
     if (file) {
       setSelectedFile(file);
       resetProgress();
+      addDebugLog(`File selected: ${file.name} (${Math.round(file.size / 1024 / 1024)}MB, ${file.type})`);
+    }
+  };
+
+  // Enhanced upload function with detailed error handling
+  const uploadWithDetailedLogging = async (uploadUrl: string, file: File) => {
+    addDebugLog('=== STARTING UPLOAD ===');
+    addDebugLog(`Upload URL: ${uploadUrl.substring(0, 100)}...`);
+    addDebugLog(`File: ${file.name} (${file.type}, ${file.size} bytes)`);
+
+    try {
+      // Test if the URL is accessible first
+      addDebugLog('Testing upload URL accessibility...');
+      
+      const uploadResponse = await fetch(uploadUrl, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type,
+        },
+        // Add timeout handling
+        signal: AbortSignal.timeout(120000), // 2 minutes timeout
+      });
+
+      addDebugLog(`Upload response status: ${uploadResponse.status}`);
+      addDebugLog(`Upload response ok: ${uploadResponse.ok}`);
+      
+      // Log response headers
+      const headers: Record<string, string> = {};
+      uploadResponse.headers.forEach((value, key) => {
+        headers[key] = value;
+      });
+      addDebugLog(`Response headers: ${JSON.stringify(headers, null, 2)}`);
+
+      if (!uploadResponse.ok) {
+        let errorText = '';
+        try {
+          errorText = await uploadResponse.text();
+          addDebugLog(`Error response body: ${errorText}`);
+        } catch (e) {
+          addDebugLog('Could not read error response body');
+        }
+        
+        throw new Error(`Upload failed with status ${uploadResponse.status}: ${errorText || uploadResponse.statusText}`);
+      }
+
+      addDebugLog('Upload completed successfully');
+      return uploadResponse;
+
+    } catch (error: any) {
+      addDebugLog(`Upload error: ${error.name} - ${error.message}`);
+      
+      if (error.name === 'AbortError') {
+        throw new Error('Upload timeout: File upload took too long (>2 minutes). Try a smaller file.');
+      }
+      
+      if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+        throw new Error('Network error: Cannot connect to upload server. This could be a CORS issue or network problem.');
+      }
+      
+      if (error.message.includes('CORS')) {
+        throw new Error('CORS error: Upload blocked by browser security policy. Check cloud storage CORS settings.');
+      }
+      
+      throw error;
     }
   };
 
@@ -56,10 +129,13 @@ export default function CloudTestPage() {
     setUploading(true);
     setProcessing(true);
     resetProgress();
+    addDebugLog('Starting upload and process workflow');
 
     try {
       // Step 1: Get upload URL
       addProgress('get-upload-url', 'processing', 'Getting upload URL...');
+      addDebugLog('Requesting upload URL from API...');
+      
       const uploadUrlResponse = await fetch('/api/cloud-upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -72,6 +148,7 @@ export default function CloudTestPage() {
       });
 
       const uploadUrlData = await uploadUrlResponse.json();
+      addDebugLog(`Upload URL API response: ${JSON.stringify(uploadUrlData, null, 2)}`);
       
       if (!uploadUrlData.success) {
         throw new Error(uploadUrlData.error);
@@ -80,35 +157,29 @@ export default function CloudTestPage() {
       addProgress('get-upload-url', 'completed', 'Upload URL generated');
       const { uploadUrl, fileKey: newFileKey, fileUrl } = uploadUrlData.data;
       setFileKey(newFileKey);
+      addDebugLog(`Generated file key: ${newFileKey}`);
 
-      // Step 2: Upload file to cloud
+      // Step 2: Upload file to cloud with enhanced error handling
       addProgress('upload', 'processing', `Uploading ${selectedFile.name}...`);
       const uploadStart = Date.now();
       
-      const uploadResponse = await fetch(uploadUrl, {
-        method: 'PUT',
-        body: selectedFile,
-        headers: {
-          'Content-Type': selectedFile.type,
-        },
-      });
-
-      if (!uploadResponse.ok) {
-        throw new Error(`Upload failed: ${uploadResponse.status}`);
-      }
+      await uploadWithDetailedLogging(uploadUrl, selectedFile);
 
       const uploadDuration = Date.now() - uploadStart;
       addProgress('upload', 'completed', `File uploaded successfully (${Math.round(uploadDuration/1000)}s)`, uploadDuration);
       setUploading(false);
+      addDebugLog(`Upload completed in ${uploadDuration}ms`);
 
       // Step 3: Wait a moment for file to be available
       addProgress('prepare', 'processing', 'Preparing file for processing...');
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      addDebugLog('Waiting for file to be available in cloud storage...');
+      await new Promise(resolve => setTimeout(resolve, 3000)); // Increased wait time
       addProgress('prepare', 'completed', 'File ready for processing');
 
       // Step 4: Process file (transcribe + repurpose)
       addProgress('process', 'processing', 'Processing file (transcription + content repurposing)...');
       const processStart = Date.now();
+      addDebugLog('Starting file processing...');
       
       const processResponse = await fetch('/api/cloud-upload', {
         method: 'POST',
@@ -120,6 +191,7 @@ export default function CloudTestPage() {
       });
 
       const processData = await processResponse.json();
+      addDebugLog(`Process API response: ${JSON.stringify(processData, null, 2)}`);
       
       if (!processData.success) {
         throw new Error(processData.error);
@@ -127,13 +199,16 @@ export default function CloudTestPage() {
 
       const processDuration = Date.now() - processStart;
       addProgress('process', 'completed', `Processing completed (${Math.round(processDuration/1000)}s)`, processDuration);
+      addDebugLog(`Processing completed in ${processDuration}ms`);
 
       // Show results
       setResult(processData.data);
 
     } catch (error: any) {
       console.error('Upload/process error:', error);
+      addDebugLog(`ERROR: ${error.message}`);
       setError(error.message);
+      
       // Mark current step as error
       setProgress(prev => {
         const newProgress = [...prev];
@@ -159,11 +234,15 @@ export default function CloudTestPage() {
     }
   };
 
+  const clearDebugLogs = () => {
+    setDebugLogs([]);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 p-8">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">Cloud Upload Test</h1>
+          <h1 className="text-4xl font-bold text-white mb-2">Cloud Upload Test (Enhanced Debug)</h1>
           <p className="text-gray-300">Test: File Upload → Cloud Storage → AssemblyAI → Claude</p>
         </div>
 
@@ -187,7 +266,7 @@ export default function CloudTestPage() {
             {selectedFile && (
               <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
                 <p className="text-gray-300">
-                  <strong>Selected:</strong> {selectedFile.name} ({Math.round(selectedFile.size / 1024 / 1024)}MB)
+                  <strong>Selected:</strong> {selectedFile.name} ({Math.round(selectedFile.size / 1024 / 1024)}MB, {selectedFile.type})
                 </p>
               </div>
             )}
@@ -201,6 +280,28 @@ export default function CloudTestPage() {
             </button>
           </div>
         </div>
+
+        {/* Debug Logs Section */}
+        {debugLogs.length > 0 && (
+          <div className="premium-card mb-8">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-semibold text-white">🐛 Debug Logs</h2>
+              <button
+                onClick={clearDebugLogs}
+                className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-500 transition-colors"
+              >
+                Clear Logs
+              </button>
+            </div>
+            <div className="bg-gray-900 border border-gray-700 rounded-lg p-4 max-h-64 overflow-y-auto">
+              {debugLogs.map((log, index) => (
+                <div key={index} className="text-green-300 text-sm font-mono mb-1">
+                  {log}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Progress Section */}
         {progress.length > 0 && (
@@ -230,7 +331,11 @@ export default function CloudTestPage() {
           <div className="premium-card mb-8">
             <h2 className="text-2xl font-semibold text-red-400 mb-4">❌ Error</h2>
             <div className="bg-red-900 border border-red-700 text-red-100 px-4 py-3 rounded-lg">
+              <p className="font-bold">Error Details:</p>
               <p>{error}</p>
+              <p className="text-sm mt-2 text-red-200">
+                💡 Check the Debug Logs above for more technical details
+              </p>
             </div>
           </div>
         )}
