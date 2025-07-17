@@ -38,19 +38,6 @@ function parseDuration(duration: string): number {
   return hours * 3600 + minutes * 60 + seconds;
 }
 
-// Get audio download URL using yt-dlp format
-async function getAudioUrl(videoId: string): Promise<string | null> {
-  try {
-    // For now, we'll use a YouTube audio stream URL pattern
-    // In production, you'd want to use yt-dlp or similar service
-    const audioUrl = `https://www.youtube.com/watch?v=${videoId}`;
-    return audioUrl;
-  } catch (error) {
-    console.error('Error getting audio URL:', error);
-    return null;
-  }
-}
-
 // Get YouTube captions/transcript
 async function getYouTubeTranscript(videoId: string): Promise<string | null> {
   try {
@@ -95,7 +82,7 @@ async function getYouTubeTranscript(videoId: string): Promise<string | null> {
     }
     
     return null;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching YouTube transcript:', error);
     return null;
   }
@@ -120,8 +107,8 @@ async function transcribeYouTubeAudio(youtubeUrl: string, videoId: string): Prom
     console.log('No captions available, would need audio transcription service');
     throw new Error('No captions available for this video. Audio transcription service needed for videos without captions.');
     
-  } catch (error) {
-    throw new Error(`Transcription failed: ${error.message}`);
+  } catch (error: any) {
+    throw new Error(`Transcription failed: ${error?.message || 'Unknown error'}`);
   }
 }
 
@@ -188,6 +175,7 @@ export async function POST(request: NextRequest) {
           success: true,
           videoInfo,
           transcription: transcriptionResult.text || transcriptionResult,
+          transcriptionSource: transcriptionResult.source || 'unknown',
           message: 'Video processed and transcribed successfully'
         });
       } catch (transcriptionError: any) {
