@@ -1,4 +1,4 @@
-// app/api/create-checkout/route.ts
+// app/api/create-checkout/route.ts - final
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
