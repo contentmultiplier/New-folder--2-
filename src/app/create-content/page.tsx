@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase';
 
 interface ProcessingStep {
   step: string;
@@ -249,32 +250,68 @@ export default function CreateContentPage() {
   };
 
   // Content processing
-  const processContentWithAI = async (content: string) => {
-    addProgress('generate', 'processing', 'Generating optimized content...');
+const processContentWithAI = async (content: string) => {
+  addProgress('generate', 'processing', 'Generating optimized content...');
+  
+  try {
+    const res = await fetch('/api/process', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        text: content,
+        platforms: selectedPlatforms,
+        contentType
+      }),
+    });
+    
+    if (!res.ok) {
+      throw new Error('Failed to process content. Please try again.');
+    }
+    
+    const data = await res.json();
+    addProgress('generate', 'completed', 'Content generated successfully');
+    
+    // Save content to database
+    addProgress('save', 'processing', 'Saving content to your library...');
     
     try {
-      const res = await fetch('/api/process', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          text: content,
-          platforms: selectedPlatforms,
-          contentType
-        }),
-      });
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
       
-      if (!res.ok) {
-        throw new Error('Failed to process content. Please try again.');
+      if (session?.access_token) {
+        const saveRes = await fetch('/api/save-content', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          body: JSON.stringify({
+            originalContent: content,
+            contentType: contentType,
+            selectedPlatforms: selectedPlatforms,
+            platformContent: data.data.repurposedContent,
+            hashtags: data.data.hashtags || {},
+            fileName: selectedFile?.name || null,
+            fileType: selectedFile?.type || null
+          }),
+        });
+        
+        if (saveRes.ok) {
+          addProgress('save', 'completed', 'Content saved to your library');
+        } else {
+          addProgress('save', 'error', 'Failed to save content');
+        }
       }
-      
-      const data = await res.json();
-      addProgress('generate', 'completed', 'Content generated successfully');
-      
-      return data;
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (saveError) {
+      console.error('Save error:', saveError);
+      addProgress('save', 'error', 'Failed to save content');
     }
-  };
+    
+    return data;
+  } catch (error: any) {
+    throw new Error(error.message);
+  }
+};
 
   // Main processing function
   const handleProcess = async () => {
