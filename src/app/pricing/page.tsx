@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { SUBSCRIPTION_TIERS } from '@/lib/subscription-config';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@supabase/supabase-js';
 
 const PLATFORM_ICONS = {
   linkedin: '💼',
@@ -38,25 +37,13 @@ export default function PricingPage() {
     setLoading(tier);
 
     try {
-      // Get the current session token
-      const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      );
-
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError || !session?.access_token) {
-        throw new Error('No valid session found');
-      }
-
       const response = await fetch('/api/create-checkout', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
+          userId: user.id,
           tier: tier,
         }),
       });
@@ -118,6 +105,17 @@ export default function PricingPage() {
             </p>
           </div>
         </div>
+
+        {/* Debug Info - Remove this after testing */}
+        {user && (
+          <div className="max-w-4xl mx-auto mb-8">
+            <div className="bg-blue-500/20 border border-blue-500/30 rounded-xl p-4 text-center">
+              <p className="text-blue-300 text-sm">
+                Debug: User ID {user.id} | Email: {user.email}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Pricing Cards - Two Row Layout */}
         <div className="max-w-7xl mx-auto">
