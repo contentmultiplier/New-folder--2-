@@ -60,8 +60,8 @@ export default function Navigation() {
     <nav className="bg-black/20 backdrop-blur-md border-b border-white/10 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          {/* Logo */}
-          <Link href="/" className="flex items-center space-x-2">
+          {/* Logo - Goes to dashboard when logged in, landing page when not */}
+          <Link href={user ? "/dashboard" : "/"} className="flex items-center space-x-2">
             <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-sm">CM</span>
             </div>
@@ -140,9 +140,6 @@ export default function Navigation() {
                   {isMenuOpen && (
                     <div className="absolute right-0 mt-2 w-48 bg-black/80 backdrop-blur-md rounded-lg border border-white/10 shadow-lg">
                       <div className="py-1">
-                        <div className="px-4 py-2 text-sm text-white/60 border-b border-white/10">
-                          {user.email}
-                        </div>
                         <div className="px-4 py-2 text-xs text-white/40">
                           Free Trial • 3 jobs left
                         </div>
@@ -218,9 +215,6 @@ export default function Navigation() {
             <div className="py-2">
               {user ? (
                 <>
-                  <div className="px-4 py-2 text-sm text-white/60 border-b border-white/10">
-                    {user.email}
-                  </div>
                   <div className="px-4 py-2 text-xs text-white/40 border-b border-white/10">
                     Free Trial • 3 jobs left
                   </div>
