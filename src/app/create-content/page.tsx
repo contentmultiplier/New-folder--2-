@@ -76,19 +76,44 @@ export default function CreateContentPage() {
   }, [user, router]);
 
   // Fetch user tier and usage
-  const fetchUserTier = async () => {
-    try {
-      const response = await fetch('/api/user-tier');
-      const data = await response.json();
-      if (data.success) {
-        setUserTier(data.data);
-        const availablePlatforms = data.data.platformAccess;
-        setSelectedPlatforms(availablePlatforms.slice(0, Math.min(2, availablePlatforms.length)));
-      }
-    } catch (error) {
-      console.error('Error fetching user tier:', error);
+const fetchUserTier = async () => {
+  try {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) return;
+
+    const response = await fetch(`/api/user-subscription?userId=${user.id}`);
+    const data = await response.json();
+    
+    if (response.ok) {
+      // Map the subscription data to our userTier format
+      const tierLimits = {
+        trial: { jobs: 3, platforms: ['linkedin', 'twitter'] },
+        basic: { jobs: 20, platforms: ['linkedin', 'twitter', 'facebook', 'instagram'] },
+        pro: { jobs: 100, platforms: ['linkedin', 'twitter', 'facebook', 'instagram', 'youtube'] },
+        business: { jobs: 500, platforms: ['linkedin', 'twitter', 'facebook', 'instagram', 'youtube', 'tiktok'] },
+        enterprise: { jobs: 999999, platforms: ['linkedin', 'twitter', 'facebook', 'instagram', 'youtube', 'tiktok'] },
+      };
+
+      const userTier = data.tier || 'trial';
+      const limits = tierLimits[userTier as keyof typeof tierLimits] || tierLimits.trial;
+      
+      setUserTier({
+        tier: userTier,
+        jobsUsed: data.jobs_used_this_month || 0,
+        jobsLimit: limits.jobs,
+        platformAccess: limits.platforms
+      });
+      
+      // Set default platforms
+      const availablePlatforms = limits.platforms;
+      setSelectedPlatforms(availablePlatforms.slice(0, Math.min(2, availablePlatforms.length)));
     }
-  };
+  } catch (error) {
+    console.error('Error fetching user tier:', error);
+  }
+};
 
   // Helper function to get max platforms for tier
   const getMaxPlatformsForTier = (tier: string) => {
