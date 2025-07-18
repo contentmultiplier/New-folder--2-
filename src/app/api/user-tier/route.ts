@@ -1,5 +1,7 @@
+// app/api/user-tier/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { SUBSCRIPTION_TIERS, getTierInfo } from '@/lib/subscription-config';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -8,96 +10,100 @@ const supabase = createClient(
 
 export async function GET(request: NextRequest) {
   try {
-    // Get the authorization header
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader) {
-      return NextResponse.json({ error: 'No authorization header' }, { status: 401 });
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
+
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'User ID is required' },
+        { status: 400 }
+      );
     }
 
-    // Extract the token from "Bearer <token>"
-    const token = authHeader.replace('Bearer ', '');
-    
-    // Verify the token and get user
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
-    if (authError || !user) {
-      console.error('Auth error:', authError);
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-    }
-
-    // Look up the user's subscription
-    const { data: subscription, error: subError } = await supabase
+    // Get user's subscription from database
+    const { data: subscription, error: subscriptionError } = await supabase
       .from('subscriptions')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .eq('status', 'active')
       .single();
 
-    if (subError && subError.code !== 'PGRST116') {
-      console.error('Subscription lookup error:', subError);
-      return NextResponse.json({ error: 'Database error' }, { status: 500 });
-    }
+    // Get user's usage this month
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
 
-    // Get user's usage data
-    const { data: usage, error: usageError } = await supabase
+    const { count: jobsUsed, error: usageError } = await supabase
       .from('usage_tracking')
-      .select('*')
-      .eq('user_id', user.id)
-      .single();
+      .select('*', { count: 'exact' })
+      .eq('user_id', userId)
+      .gte('created_at', startOfMonth.toISOString());
 
-    if (usageError && usageError.code !== 'PGRST116') {
-      console.error('Usage lookup error:', usageError);
-      // Continue without usage data
+    if (usageError) {
+      console.error('Error fetching usage:', usageError);
     }
-
-    // Define tier limits
-    const tierLimits = {
-      trial: { jobs: 3, platforms: 2 },
-      basic: { jobs: 20, platforms: 4 },
-      pro: { jobs: 100, platforms: 5 },
-      business: { jobs: 500, platforms: 6 },
-      enterprise: { jobs: -1, platforms: 6 } // -1 means unlimited
-    };
 
     // Determine current tier
     let currentTier = 'trial';
-    let stripeSubscriptionId = null;
-    let stripeCustomerId = null;
+    let subscriptionStatus = 'active';
     let periodEnd = null;
 
-    if (subscription) {
+    if (subscription && !subscriptionError) {
       currentTier = subscription.tier;
-      stripeSubscriptionId = subscription.stripe_subscription_id;
-      stripeCustomerId = subscription.stripe_customer_id;
+      subscriptionStatus = subscription.status;
       periodEnd = subscription.current_period_end;
+    } else {
+      // User is on trial - get trial end date (7 days from signup)
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('created_at')
+        .eq('id', userId)
+        .single();
+
+      if (profile) {
+        const trialEnd = new Date(profile.created_at);
+        trialEnd.setDate(trialEnd.getDate() + 7);
+        periodEnd = trialEnd.toISOString();
+      }
     }
 
-    // Get current usage
-    const currentUsage = usage ? {
-      jobs_used: usage.jobs_used || 0,
-      current_period_start: usage.current_period_start,
-      last_reset: usage.last_reset
-    } : {
-      jobs_used: 0,
-      current_period_start: null,
-      last_reset: null
-    };
+    // Get tier configuration
+    const tierInfo = getTierInfo(currentTier as keyof typeof SUBSCRIPTION_TIERS);
 
-    // Return tier information
+    // Calculate jobs remaining
+    const jobsUsedCount = jobsUsed || 0;
+    const jobsRemaining = tierInfo.jobLimit === -1 
+      ? -1 // unlimited
+      : Math.max(0, tierInfo.jobLimit - jobsUsedCount);
+
+    // Return comprehensive tier information
     return NextResponse.json({
       tier: currentTier,
-      limits: tierLimits[currentTier as keyof typeof tierLimits],
-      usage: currentUsage,
+      status: subscriptionStatus,
+      tierInfo: {
+        name: tierInfo.name,
+        price: tierInfo.price,
+        jobLimit: tierInfo.jobLimit,
+        platformAccess: tierInfo.platformAccess,
+        features: tierInfo.features
+      },
+      usage: {
+        jobsUsed: jobsUsedCount,
+        jobsRemaining: jobsRemaining,
+        jobsLimit: tierInfo.jobLimit
+      },
       subscription: {
-        stripe_subscription_id: stripeSubscriptionId,
-        stripe_customer_id: stripeCustomerId,
-        status: subscription?.status || 'inactive',
-        current_period_end: periodEnd
-      }
+        current_period_end: periodEnd,
+        is_trial: currentTier === 'trial'
+      },
+      success: true
     });
 
   } catch (error) {
     console.error('User tier API error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to fetch user tier information' },
+      { status: 500 }
+    );
   }
 }
