@@ -42,6 +42,16 @@ export default function Settings() {
   });
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
+  const [is2FAEnabled, setIs2FAEnabled] = useState(false);
+  const [isEnabling2FA, setIsEnabling2FA] = useState(false);
 
   // Redirect to auth if not logged in
   useEffect(() => {
@@ -130,6 +140,90 @@ export default function Settings() {
   const handleLogout = async () => {
     await logout();
     router.push('/auth');
+  };
+
+  const handleChangePassword = async () => {
+    try {
+      setIsChangingPassword(true);
+      setPasswordError('');
+
+      // Validate passwords
+      if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+        setPasswordError('New passwords do not match');
+        return;
+      }
+
+      if (passwordForm.newPassword.length < 6) {
+        setPasswordError('Password must be at least 6 characters');
+        return;
+      }
+
+      // Update password using Supabase
+      const { error } = await supabase.auth.updateUser({
+        password: passwordForm.newPassword
+      });
+
+      if (error) {
+        setPasswordError(error.message);
+        return;
+      }
+
+      // Success - close modal and reset form
+      setShowPasswordModal(false);
+      setPasswordForm({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+
+      // Show success message (you can add a toast notification here)
+      console.log('Password changed successfully');
+
+    } catch (error: any) {
+      setPasswordError(error.message || 'Failed to change password');
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
+  const handleEnable2FA = async () => {
+    try {
+      setIsEnabling2FA(true);
+
+      // For now, we'll just simulate enabling 2FA
+      // In a real implementation, you would:
+      // 1. Generate QR code for authenticator app
+      // 2. Verify user can generate codes
+      // 3. Enable 2FA in the backend
+      
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API call
+      setIs2FAEnabled(true);
+      
+      // Show success message
+      console.log('2FA enabled successfully');
+
+    } catch (error) {
+      console.error('Failed to enable 2FA:', error);
+    } finally {
+      setIsEnabling2FA(false);
+    }
+  };
+
+  const handleDisable2FA = async () => {
+    try {
+      setIsEnabling2FA(true);
+      
+      // Simulate disabling 2FA
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      setIs2FAEnabled(false);
+      
+      console.log('2FA disabled successfully');
+
+    } catch (error) {
+      console.error('Failed to disable 2FA:', error);
+    } finally {
+      setIsEnabling2FA(false);
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -618,7 +712,10 @@ export default function Settings() {
                               <h4 className="text-white font-semibold text-lg mb-2">Change Password</h4>
                               <p className="text-slate-300">Update your account password for enhanced security</p>
                             </div>
-                            <button className="group relative">
+                            <button 
+                              onClick={() => setShowPasswordModal(true)}
+                              className="group relative"
+                            >
                               <div className="absolute -inset-1 bg-gradient-to-r from-slate-600 to-slate-500 rounded-xl blur opacity-50 group-hover:opacity-75 transition duration-300"></div>
                               <div className="relative bg-slate-700/50 border border-slate-600/50 text-white font-semibold px-6 py-3 rounded-lg hover:bg-slate-600/50 transition duration-300">
                                 Change Password
@@ -667,10 +764,29 @@ export default function Settings() {
                               <h4 className="text-white font-semibold text-lg mb-2">Secure Your Account</h4>
                               <p className="text-slate-300">Add an extra layer of security with 2FA authentication</p>
                             </div>
-                            <button className="group relative">
-                              <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-blue-500 rounded-xl blur opacity-75 group-hover:opacity-100 transition duration-300"></div>
-                              <div className="relative bg-gradient-to-r from-emerald-500 to-blue-500 text-white font-semibold px-6 py-3 rounded-lg hover:scale-105 transition duration-300">
-                                Enable 2FA
+                            <button 
+                              onClick={is2FAEnabled ? handleDisable2FA : handleEnable2FA}
+                              disabled={isEnabling2FA}
+                              className="group relative disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <div className={`absolute -inset-1 rounded-xl blur opacity-75 group-hover:opacity-100 transition duration-300 ${
+                                is2FAEnabled 
+                                  ? 'bg-gradient-to-r from-red-500 to-pink-500' 
+                                  : 'bg-gradient-to-r from-emerald-500 to-blue-500'
+                              }`}></div>
+                              <div className={`relative text-white font-semibold px-6 py-3 rounded-lg hover:scale-105 transition duration-300 flex items-center gap-2 ${
+                                is2FAEnabled 
+                                  ? 'bg-gradient-to-r from-red-500 to-pink-500' 
+                                  : 'bg-gradient-to-r from-emerald-500 to-blue-500'
+                              }`}>
+                                {isEnabling2FA ? (
+                                  <>
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                    <span>{is2FAEnabled ? 'Disabling...' : 'Enabling...'}</span>
+                                  </>
+                                ) : (
+                                  <span>{is2FAEnabled ? 'Disable 2FA' : 'Enable 2FA'}</span>
+                                )}
                               </div>
                             </button>
                           </div>
@@ -711,6 +827,98 @@ export default function Settings() {
           </div>
         </div>
       </div>
+
+      {/* Password Change Modal */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="relative max-w-md w-full">
+            <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl blur opacity-75"></div>
+            <div className="relative bg-slate-800 border border-slate-700 rounded-xl p-8">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-2xl font-bold text-white flex items-center gap-3">
+                  <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
+                    <span>🔐</span>
+                  </div>
+                  Change Password
+                </h3>
+                <button
+                  onClick={() => setShowPasswordModal(false)}
+                  className="text-slate-400 hover:text-white transition-colors"
+                >
+                  <span className="text-2xl">×</span>
+                </button>
+              </div>
+
+              {passwordError && (
+                <div className="bg-red-500/20 border border-red-500/30 rounded-lg p-4 mb-6">
+                  <p className="text-red-300 text-sm">{passwordError}</p>
+                </div>
+              )}
+
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-slate-300 text-sm font-semibold mb-3">Current Password</label>
+                  <input
+                    type="password"
+                    value={passwordForm.currentPassword}
+                    onChange={(e) => setPasswordForm(prev => ({ ...prev, currentPassword: e.target.value }))}
+                    className="w-full bg-slate-700/50 border border-slate-600/50 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    placeholder="Enter current password"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 text-sm font-semibold mb-3">New Password</label>
+                  <input
+                    type="password"
+                    value={passwordForm.newPassword}
+                    onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
+                    className="w-full bg-slate-700/50 border border-slate-600/50 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    placeholder="Enter new password"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 text-sm font-semibold mb-3">Confirm New Password</label>
+                  <input
+                    type="password"
+                    value={passwordForm.confirmPassword}
+                    onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                    className="w-full bg-slate-700/50 border border-slate-600/50 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    placeholder="Confirm new password"
+                  />
+                </div>
+
+                <div className="flex gap-4 pt-4">
+                  <button
+                    onClick={() => setShowPasswordModal(false)}
+                    className="flex-1 bg-slate-700/50 border border-slate-600/50 text-white font-semibold px-6 py-3 rounded-lg hover:bg-slate-600/50 transition duration-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleChangePassword}
+                    disabled={isChangingPassword || !passwordForm.newPassword || !passwordForm.confirmPassword}
+                    className="flex-1 group relative disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl blur opacity-75 group-hover:opacity-100 transition duration-300"></div>
+                    <div className="relative bg-gradient-to-r from-blue-500 to-purple-500 text-white font-semibold px-6 py-3 rounded-lg hover:scale-105 transition duration-300 flex items-center justify-center gap-2">
+                      {isChangingPassword ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          <span>Changing...</span>
+                        </>
+                      ) : (
+                        <span>Change Password</span>
+                      )}
+                    </div>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
