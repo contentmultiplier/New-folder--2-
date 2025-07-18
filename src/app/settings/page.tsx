@@ -3,14 +3,23 @@
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 
 interface UserProfile {
   email: string;
+  full_name: string;
+  avatar_url: string;
   created_at: string;
   subscription_tier: string;
   usage_limit: number;
   usage_used: number;
+  total_content_jobs: number;
+  hours_saved: number;
+  platforms_optimized: number;
+  subscription_status: string;
+  subscription_period_start: string | null;
+  subscription_period_end: string | null;
 }
 
 interface Preferences {
@@ -32,6 +41,7 @@ export default function Settings() {
     default_processing_speed: 'balanced'
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Redirect to auth if not logged in
   useEffect(() => {
@@ -43,20 +53,78 @@ export default function Settings() {
   // Load user profile and preferences
   useEffect(() => {
     if (user) {
-      setUserProfile({
-        email: user.email || '',
-        created_at: '2024-07-01T00:00:00Z',
-        subscription_tier: 'Free Trial',
-        usage_limit: 3,
-        usage_used: 2
-      });
+      loadUserData();
     }
   }, [user]);
 
+  const loadUserData = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Get user session for API calls
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      // Load user profile
+      const profileResponse = await fetch('/api/user-profile', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+
+      if (profileResponse.ok) {
+        const profileData = await profileResponse.json();
+        setUserProfile(profileData);
+      }
+
+      // Load user preferences
+      const preferencesResponse = await fetch('/api/user-preferences', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+
+      if (preferencesResponse.ok) {
+        const preferencesData = await preferencesResponse.json();
+        setPreferences(preferencesData);
+      }
+
+    } catch (error) {
+      console.error('Error loading user data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSavePreferences = async () => {
-    setIsSaving(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setIsSaving(false);
+    try {
+      setIsSaving(true);
+      
+      // Get user session for API calls
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const response = await fetch('/api/user-preferences', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify(preferences)
+      });
+
+      if (response.ok) {
+        // Show success message (you can add a toast notification here)
+        console.log('Preferences saved successfully');
+      } else {
+        console.error('Failed to save preferences');
+      }
+
+    } catch (error) {
+      console.error('Error saving preferences:', error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -78,6 +146,7 @@ export default function Settings() {
       case 'basic': return 'from-blue-500 to-blue-400';
       case 'pro': return 'from-purple-500 to-purple-400';
       case 'business': return 'from-yellow-500 to-yellow-400';
+      case 'enterprise': return 'from-emerald-500 to-emerald-400';
       default: return 'from-slate-500 to-slate-400';
     }
   };
@@ -88,7 +157,8 @@ export default function Settings() {
     { id: 'preferences', name: 'Preferences', icon: '⚙️', gradient: 'from-pink-500 to-red-500' },
     { id: 'security', name: 'Security', icon: '🔒', gradient: 'from-emerald-500 to-blue-500' }
   ];
-  if (loading) {
+
+  if (loading || isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
         <div className="relative">
@@ -174,7 +244,7 @@ export default function Settings() {
 
             {/* Main Content */}
             <div className="lg:col-span-3">
-                {/* Account Tab */}
+              {/* Account Tab */}
               {activeTab === 'account' && (
                 <div className="group relative">
                   <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300"></div>
@@ -215,16 +285,16 @@ export default function Settings() {
                             <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl blur opacity-25 group-hover:opacity-50 transition duration-300"></div>
                             <div className="relative bg-slate-700/30 border border-slate-600/50 rounded-xl p-6 text-center">
                               <div className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
-                                {userProfile.usage_used}
+                                {userProfile.total_content_jobs}
                               </div>
-                              <div className="text-slate-300 text-sm font-medium">Content Jobs Used</div>
+                              <div className="text-slate-300 text-sm font-medium">Content Jobs Created</div>
                             </div>
                           </div>
                           <div className="group relative">
                             <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-blue-500 rounded-xl blur opacity-25 group-hover:opacity-50 transition duration-300"></div>
                             <div className="relative bg-slate-700/30 border border-slate-600/50 rounded-xl p-6 text-center">
                               <div className="text-3xl font-bold bg-gradient-to-r from-emerald-400 to-blue-400 bg-clip-text text-transparent mb-2">
-                                ~6
+                                {userProfile.hours_saved}
                               </div>
                               <div className="text-slate-300 text-sm font-medium">Hours Saved</div>
                             </div>
@@ -233,7 +303,7 @@ export default function Settings() {
                             <div className="absolute -inset-1 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl blur opacity-25 group-hover:opacity-50 transition duration-300"></div>
                             <div className="relative bg-slate-700/30 border border-slate-600/50 rounded-xl p-6 text-center">
                               <div className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-2">
-                                5
+                                {userProfile.platforms_optimized}
                               </div>
                               <div className="text-slate-300 text-sm font-medium">Platforms Optimized</div>
                             </div>
@@ -267,7 +337,8 @@ export default function Settings() {
                   </div>
                 </div>
               )}
-        {/* Subscription Tab */}
+
+              {/* Subscription Tab */}
               {activeTab === 'subscription' && (
                 <div className="group relative">
                   <div className="absolute -inset-1 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300"></div>
@@ -298,11 +369,15 @@ export default function Settings() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                             <div className="bg-slate-800/50 rounded-lg p-4">
                               <div className="text-slate-300 text-sm font-medium mb-1">Monthly Limit</div>
-                              <div className="text-white font-bold text-lg">{userProfile.usage_limit} content jobs</div>
+                              <div className="text-white font-bold text-lg">
+                                {userProfile.usage_limit === 999999 ? 'Unlimited' : `${userProfile.usage_limit} content jobs`}
+                              </div>
                             </div>
                             <div className="bg-slate-800/50 rounded-lg p-4">
                               <div className="text-slate-300 text-sm font-medium mb-1">Used This Month</div>
-                              <div className="text-white font-bold text-lg">{userProfile.usage_used} / {userProfile.usage_limit}</div>
+                              <div className="text-white font-bold text-lg">
+                                {userProfile.usage_used} / {userProfile.usage_limit === 999999 ? '∞' : userProfile.usage_limit}
+                              </div>
                             </div>
                           </div>
 
@@ -315,12 +390,12 @@ export default function Settings() {
                               <p className="text-slate-300 mb-4 leading-relaxed">
                                 Unlock unlimited content transformations, advanced features, and priority support with our premium plans.
                               </p>
-                              <button className="group relative">
+                              <Link href="/pricing" className="group relative inline-block">
                                 <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl blur opacity-75 group-hover:opacity-100 transition duration-300"></div>
                                 <div className="relative bg-gradient-to-r from-blue-500 to-purple-500 text-white font-semibold px-8 py-3 rounded-lg hover:scale-105 transition duration-300">
                                   View Plans & Pricing
                                 </div>
-                              </button>
+                              </Link>
                             </div>
                           )}
                         </div>
@@ -335,18 +410,27 @@ export default function Settings() {
                         <div className="bg-slate-700/30 border border-slate-600/50 rounded-xl p-6">
                           <div className="flex items-center justify-between mb-4">
                             <span className="text-slate-300 font-medium">Content Jobs</span>
-                            <span className="text-white font-bold text-lg">{userProfile.usage_used} / {userProfile.usage_limit}</span>
+                            <span className="text-white font-bold text-lg">
+                              {userProfile.usage_used} / {userProfile.usage_limit === 999999 ? '∞' : userProfile.usage_limit}
+                            </span>
                           </div>
                           <div className="w-full bg-slate-600/50 rounded-full h-3 mb-2">
                             <div 
                               className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full transition-all duration-500 relative overflow-hidden"
-                              style={{ width: `${Math.min((userProfile.usage_used / userProfile.usage_limit) * 100, 100)}%` }}
+                              style={{ 
+                                width: userProfile.usage_limit === 999999 
+                                  ? '100%' 
+                                  : `${Math.min((userProfile.usage_used / userProfile.usage_limit) * 100, 100)}%` 
+                              }}
                             >
                               <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
                             </div>
                           </div>
                           <p className="text-slate-400 text-sm">
-                            {userProfile.usage_limit - userProfile.usage_used} jobs remaining in your {userProfile.subscription_tier.toLowerCase()}
+                            {userProfile.usage_limit === 999999 
+                              ? 'Unlimited usage in your enterprise plan'
+                              : `${userProfile.usage_limit - userProfile.usage_used} jobs remaining in your ${userProfile.subscription_tier.toLowerCase()}`
+                            }
                           </p>
                         </div>
                       </div>
@@ -361,8 +445,15 @@ export default function Settings() {
                           <div className="w-16 h-16 bg-gradient-to-r from-slate-600 to-slate-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
                             <span className="text-2xl">📄</span>
                           </div>
-                          <h4 className="text-white font-semibold text-lg mb-2">No billing history available</h4>
-                          <p className="text-slate-400">You're currently on the free trial - no charges yet!</p>
+                          <h4 className="text-white font-semibold text-lg mb-2">
+                            {userProfile.subscription_tier === 'Free Trial' ? 'No billing history available' : 'Billing history coming soon'}
+                          </h4>
+                          <p className="text-slate-400">
+                            {userProfile.subscription_tier === 'Free Trial' 
+                              ? "You're currently on the free trial - no charges yet!"
+                              : 'Billing history and invoice downloads will be available soon.'
+                            }
+                          </p>
                         </div>
                       </div>
 
@@ -370,7 +461,8 @@ export default function Settings() {
                   </div>
                 </div>
               )}
-             {/* Preferences Tab */}
+
+              {/* Preferences Tab */}
               {activeTab === 'preferences' && (
                 <div className="group relative">
                   <div className="absolute -inset-1 bg-gradient-to-r from-pink-500 to-red-500 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300"></div>
@@ -499,6 +591,7 @@ export default function Settings() {
                   </div>
                 </div>
               )}
+
               {/* Security Tab */}
               {activeTab === 'security' && (
                 <div className="group relative">
@@ -620,4 +713,4 @@ export default function Settings() {
       </div>
     </div>
   );
-} 
+}
