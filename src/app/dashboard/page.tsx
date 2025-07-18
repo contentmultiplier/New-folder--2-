@@ -42,15 +42,21 @@ export default function Dashboard() {
       setRecentContent([
         {
           id: '1',
-          original_content: 'How to build a successful SaaS product...',
+          original_content: 'How to build a successful SaaS product in 2024: A comprehensive guide covering market research, MVP development, and scaling strategies for modern entrepreneurs...',
           content_type: 'Blog Post',
           created_at: '2024-07-15T10:30:00Z'
         },
         {
           id: '2',
-          original_content: 'Top 10 productivity tips for creators...',
+          original_content: 'Top 10 productivity tips for content creators: Time management, automation tools, and workflow optimization techniques that save hours every day...',
           content_type: 'Video Script',
           created_at: '2024-07-14T15:20:00Z'
+        },
+        {
+          id: '3',
+          original_content: 'The future of AI in content creation: Exploring how artificial intelligence is transforming the creative process and what it means for creators...',
+          content_type: 'Podcast',
+          created_at: '2024-07-13T09:15:00Z'
         }
       ]);
 
@@ -65,10 +71,16 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center">
-        <div className="premium-card p-8 text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-white/60">Loading your dashboard...</p>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="relative">
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl blur opacity-75"></div>
+          <div className="relative bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 p-12 rounded-xl text-center">
+            <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+            </div>
+            <h3 className="text-2xl font-bold text-white mb-2">Loading Dashboard</h3>
+            <p className="text-slate-300">Preparing your content workspace...</p>
+          </div>
         </div>
       </div>
     );
@@ -89,180 +101,291 @@ export default function Dashboard() {
 
   const getUsageColor = () => {
     const percentage = (usageStats.used / usageStats.limit) * 100;
+    if (percentage >= 90) return 'from-red-500 to-pink-500';
+    if (percentage >= 70) return 'from-yellow-500 to-orange-500';
+    return 'from-green-500 to-emerald-500';
+  };
+
+  const getUsageTextColor = () => {
+    const percentage = (usageStats.used / usageStats.limit) * 100;
     if (percentage >= 90) return 'text-red-400';
     if (percentage >= 70) return 'text-yellow-400';
-    return 'text-green-400';
+    return 'text-emerald-400';
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 pt-20 pb-12">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        
-        {/* Welcome Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">
-            Welcome back, {user.email?.split('@')[0]}! 👋
-          </h1>
-          <p className="text-white/60 text-lg">
-            Ready to transform your content into multiple platform-optimized formats?
-          </p>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      {/* Background Effects */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-pulse"></div>
+        <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-pulse delay-1000"></div>
+        <div className="absolute bottom-1/4 left-1/3 w-96 h-96 bg-pink-500 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-pulse delay-500"></div>
+      </div>
 
-        {/* Quick Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="relative pt-24 pb-12">
+        <div className="max-w-7xl mx-auto px-6">
           
-          {/* Usage Stats */}
-          <div className="premium-card p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-white font-semibold">Usage This Month</h3>
-              <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded-full">
-                {usageStats.tier}
-              </span>
-            </div>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-white/60">Content Jobs</span>
-                <span className={`font-medium ${getUsageColor()}`}>
-                  {usageStats.used} / {usageStats.limit}
-                </span>
-              </div>
-              <div className="w-full bg-white/10 rounded-full h-2">
-                <div 
-                  className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${Math.min((usageStats.used / usageStats.limit) * 100, 100)}%` }}
-                ></div>
-              </div>
-              {usageStats.used >= usageStats.limit && (
-                <p className="text-red-400 text-sm">
-                  Upgrade to continue creating content
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Time Saved */}
-          <div className="premium-card p-6">
-            <h3 className="text-white font-semibold mb-4">Time Saved</h3>
-            <div className="space-y-2">
-              <div className="text-2xl font-bold text-green-400">~6 hours</div>
-              <p className="text-white/60 text-sm">
-                Based on {usageStats.used} content transformations
-              </p>
-            </div>
-          </div>
-
-          {/* Quick Action */}
-          <div className="premium-card p-6">
-            <h3 className="text-white font-semibold mb-4">Quick Start</h3>
-            <Link
-              href="/create-content"
-              className="premium-button w-full text-center block"
-            >
-              Create New Content ✨
-            </Link>
-          </div>
-
-        </div>
-
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          
-          {/* Recent Content */}
-          <div className="premium-card p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-white">Recent Content</h2>
-              <Link 
-                href="/history" 
-                className="text-blue-400 hover:text-blue-300 text-sm transition-colors"
-              >
-                View All →
-              </Link>
+          {/* Welcome Header */}
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center bg-gradient-to-r from-emerald-500/20 to-blue-500/20 border border-emerald-500/30 rounded-full px-6 py-2 mb-6">
+              <div className="w-2 h-2 bg-emerald-400 rounded-full mr-3 animate-pulse"></div>
+              <span className="text-emerald-300 text-sm font-medium">Dashboard Active</span>
             </div>
             
-            {recentContent.length > 0 ? (
-              <div className="space-y-4">
-                {recentContent.map((item) => (
-                  <div 
-                    key={item.id}
-                    className="border border-white/10 rounded-lg p-4 hover:border-white/20 transition-colors cursor-pointer"
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <span className="text-blue-400 text-sm font-medium">
-                        {item.content_type}
-                      </span>
-                      <span className="text-white/40 text-xs">
-                        {formatDate(item.created_at)}
-                      </span>
-                    </div>
-                    <p className="text-white/80 text-sm line-clamp-2">
-                      {item.original_content}
-                    </p>
+            <h1 className="text-5xl md:text-6xl font-bold mb-6">
+              Welcome back, 
+              <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                {user.email?.split('@')[0]}
+              </span>! 👋
+            </h1>
+            <p className="text-xl text-slate-300 max-w-3xl mx-auto">
+              Your AI-powered content workspace is ready. Transform your ideas into platform-optimized content in seconds.
+            </p>
+          </div>
+
+          {/* Quick Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
+            
+            {/* Usage Stats */}
+            <div className="group relative col-span-1 md:col-span-2">
+              <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-300"></div>
+              <div className="relative bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 p-8 rounded-xl">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-2xl font-bold text-white">Usage This Month</h3>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-blue-400 px-3 py-1 rounded-full border border-blue-500/30">
+                      {usageStats.tier}
+                    </span>
                   </div>
-                ))}
+                </div>
+                
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-300 text-lg">Content Jobs</span>
+                    <span className={`font-bold text-2xl ${getUsageTextColor()}`}>
+                      {usageStats.used} / {usageStats.limit}
+                    </span>
+                  </div>
+                  
+                  <div className="relative">
+                    <div className="w-full bg-slate-700/50 rounded-full h-3">
+                      <div 
+                        className={`bg-gradient-to-r ${getUsageColor()} h-3 rounded-full transition-all duration-500 relative overflow-hidden`}
+                        style={{ width: `${Math.min((usageStats.used / usageStats.limit) * 100, 100)}%` }}
+                      >
+                        <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {usageStats.used >= usageStats.limit ? (
+                    <div className="bg-gradient-to-r from-red-500/20 to-pink-500/20 border border-red-500/30 rounded-xl p-4">
+                      <p className="text-red-300 font-semibold">⚠️ Trial limit reached</p>
+                      <p className="text-red-200 text-sm mt-1">Upgrade to continue creating content</p>
+                    </div>
+                  ) : (
+                    <p className="text-slate-400 text-sm">
+                      {usageStats.limit - usageStats.used} jobs remaining in your trial
+                    </p>
+                  )}
+                </div>
               </div>
-            ) : (
-              <div className="text-center py-8">
-                <div className="text-white/40 mb-4">📝</div>
-                <p className="text-white/60 mb-4">No content created yet</p>
-                <Link href="/create-content" className="premium-button">
-                  Create Your First Content
+            </div>
+
+            {/* Time Saved */}
+            <div className="group relative">
+              <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-blue-500 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-300"></div>
+              <div className="relative bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 p-8 rounded-xl text-center">
+                <div className="w-16 h-16 bg-gradient-to-r from-emerald-500 to-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <span className="text-2xl">⏰</span>
+                </div>
+                <h3 className="text-white font-semibold mb-2">Time Saved</h3>
+                <div className="text-3xl font-bold bg-gradient-to-r from-emerald-400 to-blue-400 bg-clip-text text-transparent mb-2">
+                  ~6 hours
+                </div>
+                <p className="text-slate-400 text-sm">
+                  Based on {usageStats.used} transformations
+                </p>
+              </div>
+            </div>
+
+            {/* Quick Action */}
+            <div className="group relative">
+              <div className="absolute -inset-1 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-300"></div>
+              <div className="relative bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 p-8 rounded-xl text-center">
+                <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <span className="text-2xl">✨</span>
+                </div>
+                <h3 className="text-white font-semibold mb-4">Quick Start</h3>
+                <Link
+                  href="/create-content"
+                  className="group relative inline-block w-full"
+                >
+                  <div className="absolute -inset-1 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl blur opacity-75 group-hover:opacity-100 transition duration-300"></div>
+                  <div className="relative bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold px-6 py-3 rounded-lg hover:scale-105 transition duration-300">
+                    Create Content
+                  </div>
                 </Link>
               </div>
-            )}
+            </div>
+
           </div>
 
-          {/* Getting Started / Tips */}
-          <div className="premium-card p-6">
-            <h2 className="text-xl font-semibold text-white mb-6">Getting Started</h2>
+          {/* Main Content Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             
-            <div className="space-y-4">
-              <div className="flex items-start space-x-3">
-                <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-medium mt-0.5">
-                  1
+            {/* Recent Content */}
+            <div className="group relative">
+              <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300"></div>
+              <div className="relative bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 p-8 rounded-xl">
+                <div className="flex items-center justify-between mb-8">
+                  <h2 className="text-3xl font-bold text-white">Recent Content</h2>
+                  <Link 
+                    href="/history" 
+                    className="group flex items-center text-blue-400 hover:text-blue-300 transition-colors"
+                  >
+                    <span className="mr-2">View All</span>
+                    <div className="transform group-hover:translate-x-1 transition-transform">→</div>
+                  </Link>
                 </div>
-                <div>
-                  <h4 className="text-white font-medium mb-1">Upload Your Content</h4>
-                  <p className="text-white/60 text-sm">
-                    Paste text, upload audio/video files, or enter your content manually
-                  </p>
-                </div>
+                
+                {recentContent.length > 0 ? (
+                  <div className="space-y-4">
+                    {recentContent.map((item, index) => (
+                      <div 
+                        key={item.id}
+                        className="group relative"
+                      >
+                        <div className="absolute -inset-1 bg-gradient-to-r from-slate-600 to-slate-500 rounded-xl blur opacity-0 group-hover:opacity-25 transition duration-300"></div>
+                        <div className="relative bg-slate-700/30 border border-slate-600/50 rounded-lg p-6 hover:bg-slate-700/50 transition-all duration-300">
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-3 h-3 rounded-full bg-gradient-to-r ${
+                                index === 0 ? 'from-blue-400 to-purple-400' :
+                                index === 1 ? 'from-purple-400 to-pink-400' :
+                                'from-pink-400 to-red-400'
+                              }`}></div>
+                              <span className="text-blue-400 font-semibold">
+                                {item.content_type}
+                              </span>
+                            </div>
+                            <span className="text-slate-400 text-sm">
+                              {formatDate(item.created_at)}
+                            </span>
+                          </div>
+                          <p className="text-slate-300 leading-relaxed line-clamp-2">
+                            {item.original_content}
+                          </p>
+                          <div className="mt-4 flex items-center text-slate-400 text-sm">
+                            <span className="mr-4">📊 5 platforms</span>
+                            <span className="mr-4">🏷️ Hashtags included</span>
+                            <span>⚡ Processed in 45s</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-16">
+                    <div className="w-24 h-24 bg-gradient-to-r from-slate-600 to-slate-500 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                      <span className="text-4xl">📝</span>
+                    </div>
+                    <h3 className="text-2xl font-bold text-white mb-4">No content created yet</h3>
+                    <p className="text-slate-400 mb-8 max-w-md mx-auto">
+                      Start your content creation journey by transforming your first piece of content
+                    </p>
+                    <Link href="/create-content" className="group relative inline-block">
+                      <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl blur opacity-75 group-hover:opacity-100 transition duration-300"></div>
+                      <div className="relative bg-gradient-to-r from-blue-500 to-purple-500 text-white font-semibold px-8 py-4 rounded-lg hover:scale-105 transition duration-300">
+                        Create Your First Content
+                      </div>
+                    </Link>
+                  </div>
+                )}
               </div>
-              
-              <div className="flex items-start space-x-3">
-                <div className="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center text-white text-sm font-medium mt-0.5">
-                  2
+            </div>
+
+            {/* Getting Started / Tips */}
+            <div className="group relative">
+              <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-blue-500 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300"></div>
+              <div className="relative bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 p-8 rounded-xl">
+                <h2 className="text-3xl font-bold text-white mb-8">Getting Started</h2>
+                
+                <div className="space-y-6">
+                  {[
+                    {
+                      step: 1,
+                      title: "Upload Your Content",
+                      description: "Paste text, upload audio/video files, or enter your content manually",
+                      gradient: "from-blue-500 to-purple-500",
+                      icon: "📤"
+                    },
+                    {
+                      step: 2,
+                      title: "Choose Content Type",
+                      description: "Select blog post, video script, podcast, or visual story format",
+                      gradient: "from-purple-500 to-pink-500",
+                      icon: "🎯"
+                    },
+                    {
+                      step: 3,
+                      title: "Get Platform Content",
+                      description: "Receive optimized versions for Twitter, LinkedIn, Instagram, and more",
+                      gradient: "from-pink-500 to-red-500",
+                      icon: "🚀"
+                    }
+                  ].map((item) => (
+                    <div key={item.step} className="flex items-start space-x-4">
+                      <div className={`w-12 h-12 bg-gradient-to-r ${item.gradient} rounded-xl flex items-center justify-center text-white font-bold flex-shrink-0`}>
+                        {item.step}
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-white font-semibold text-lg mb-2 flex items-center gap-2">
+                          <span>{item.icon}</span>
+                          {item.title}
+                        </h4>
+                        <p className="text-slate-300 leading-relaxed">
+                          {item.description}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div>
-                  <h4 className="text-white font-medium mb-1">Choose Content Type</h4>
-                  <p className="text-white/60 text-sm">
-                    Select blog post, video script, podcast, or visual story format
-                  </p>
-                </div>
-              </div>
-              
-              <div className="flex items-start space-x-3">
-                <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center text-white text-sm font-medium mt-0.5">
-                  3
-                </div>
-                <div>
-                  <h4 className="text-white font-medium mb-1">Get Platform Content</h4>
-                  <p className="text-white/60 text-sm">
-                    Receive optimized versions for Twitter, LinkedIn, Instagram, and more
-                  </p>
+
+                <div className="mt-8 pt-8 border-t border-slate-700/50">
+                  <div className="bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/30 rounded-xl p-6">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-8 h-8 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-lg flex items-center justify-center">
+                        <span className="text-sm">💡</span>
+                      </div>
+                      <span className="font-bold text-yellow-300 text-lg">Pro Tip</span>
+                    </div>
+                    <p className="text-slate-300 leading-relaxed">
+                      Upload longer content (like podcast transcripts or full blog posts) for the best results. 
+                      Our AI works better with more context and can create more engaging platform-specific content!
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="mt-6 pt-6 border-t border-white/10">
-              <div className="flex items-center space-x-2 text-yellow-400 mb-2">
-                <span>💡</span>
-                <span className="font-medium text-sm">Pro Tip</span>
+          </div>
+
+          {/* Performance Metrics */}
+          <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-6">
+            {[
+              { label: "Avg Processing Time", value: "45s", gradient: "from-blue-400 to-purple-400" },
+              { label: "Platforms Supported", value: "5", gradient: "from-purple-400 to-pink-400" },
+              { label: "Content Generated", value: `${usageStats.used * 5}`, gradient: "from-pink-400 to-red-400" },
+              { label: "Success Rate", value: "99%", gradient: "from-emerald-400 to-blue-400" }
+            ].map((metric, index) => (
+              <div key={index} className="text-center">
+                <div className={`text-3xl font-bold bg-gradient-to-r ${metric.gradient} bg-clip-text text-transparent mb-2`}>
+                  {metric.value}
+                </div>
+                <div className="text-slate-400 text-sm">{metric.label}</div>
               </div>
-              <p className="text-white/60 text-sm">
-                Upload longer content (like podcast transcripts) for the best results. 
-                Our AI works better with more context!
-              </p>
-            </div>
+            ))}
           </div>
 
         </div>
