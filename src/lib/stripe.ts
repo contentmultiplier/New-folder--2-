@@ -1,21 +1,25 @@
 import Stripe from 'stripe';
 
-// Server-side only: Stripe instance (only import this in API routes)
-let stripeInstance: Stripe | null = null;
-
-export function getStripe() {
-  if (!stripeInstance) {
-    if (!process.env.STRIPE_SECRET_KEY) {
-      throw new Error('STRIPE_SECRET_KEY is not set');
-    }
-    stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY, {
-      typescript: true,
-    });
+// Server-side Stripe initialization
+function createStripeInstance() {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error('STRIPE_SECRET_KEY is not set');
   }
-  return stripeInstance;
+  
+  return new Stripe(process.env.STRIPE_SECRET_KEY, {
+    typescript: true,
+  });
 }
 
-// Client-safe configuration (no environment variables)
+// Export stripe instance (only use on server-side)
+export const getStripe = () => createStripeInstance();
+
+// Client-safe Stripe configuration
+export const STRIPE_CONFIG = {
+  publishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!,
+};
+
+// Subscription tier configuration (client-safe)
 export const SUBSCRIPTION_TIERS = {
   trial: {
     name: 'Free Trial',
@@ -68,14 +72,14 @@ export const SUBSCRIPTION_TIERS = {
     priceId: 'prod_ShTs7HVVCmLDbc',
     features: [
       '500 content transformations/month',
-      'ALL 5 platforms',
+      'ALL 6 platforms (LinkedIn, Twitter, Facebook, Instagram, YouTube, TikTok)',
       'Video/Audio upload support',
       'Team features',
       'Custom integrations',
       'Dedicated support'
     ],
     jobLimit: 500,
-    platformAccess: ['linkedin', 'twitter', 'facebook', 'instagram', 'youtube'],
+    platformAccess: ['linkedin', 'twitter', 'facebook', 'instagram', 'youtube', 'tiktok'],
     hasVideoUpload: true,
   },
   enterprise: {
@@ -84,19 +88,19 @@ export const SUBSCRIPTION_TIERS = {
     priceId: 'prod_ShTs6OAqDAkzoJ',
     features: [
       'Unlimited transformations',
-      'ALL platforms',
+      'ALL 6 platforms (LinkedIn, Twitter, Facebook, Instagram, YouTube, TikTok)',
       'Video/Audio upload support',
       'White-label options',
       'API access',
       'Dedicated support'
     ],
     jobLimit: -1,
-    platformAccess: ['linkedin', 'twitter', 'facebook', 'instagram', 'youtube'],
+    platformAccess: ['linkedin', 'twitter', 'facebook', 'instagram', 'youtube', 'tiktok'],
     hasVideoUpload: true,
   },
 };
 
-// Helper functions (client-safe)
+// Helper function to get user's subscription tier
 export function getUserTierLimits(tier: string | null) {
   if (!tier || tier === 'trial') {
     return SUBSCRIPTION_TIERS.trial;
@@ -105,11 +109,13 @@ export function getUserTierLimits(tier: string | null) {
   return SUBSCRIPTION_TIERS[tier as keyof typeof SUBSCRIPTION_TIERS] || SUBSCRIPTION_TIERS.trial;
 }
 
+// Helper function to check if user can access a platform
 export function canAccessPlatform(userTier: string | null, platform: string) {
   const tierLimits = getUserTierLimits(userTier);
   return tierLimits.platformAccess.includes(platform.toLowerCase());
 }
 
+// Helper function to check if user can upload videos
 export function canUploadVideo(userTier: string | null) {
   const tierLimits = getUserTierLimits(userTier);
   return tierLimits.hasVideoUpload;

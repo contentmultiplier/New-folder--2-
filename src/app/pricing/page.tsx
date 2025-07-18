@@ -11,6 +11,7 @@ const PLATFORM_ICONS = {
   facebook: '📘',
   instagram: '📸',
   youtube: '📺',
+  tiktok: '🎵',
 };
 
 const PLATFORM_NAMES = {
@@ -19,6 +20,7 @@ const PLATFORM_NAMES = {
   facebook: 'Facebook',
   instagram: 'Instagram',
   youtube: 'YouTube',
+  tiktok: 'TikTok',
 };
 
 export default function PricingPage() {
@@ -94,99 +96,172 @@ export default function PricingPage() {
           </p>
         </div>
 
-        {/* Pricing Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-8 max-w-full mx-auto">
-          {tiers.map((tier) => (
-            <div
-              key={tier.key}
-              className={`relative backdrop-blur-xl bg-white/10 border border-white/20 rounded-3xl p-8 transition-all duration-300 hover:scale-105 hover:bg-white/20 flex flex-col ${
-                tier.popular ? 'ring-2 ring-cyan-400 shadow-2xl shadow-cyan-400/20' : ''
-              }`}
-            >
-              {tier.popular && (
-                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                  <span className="bg-gradient-to-r from-cyan-400 to-purple-400 text-white px-4 py-2 rounded-full text-sm font-semibold">
-                    Most Popular
-                  </span>
-                </div>
-              )}
-
-              <div className="text-center mb-6">
-                <h3 className="text-2xl font-bold text-white mb-2">{tier.name}</h3>
-                <div className="text-4xl font-bold text-white mb-2">
-                  {tier.price === 0 ? 'Free' : `$${tier.price}`}
-                  {tier.price > 0 && <span className="text-lg text-slate-300">/month</span>}
-                </div>
-                {tier.key === 'trial' && (
-                  <p className="text-sm text-cyan-400">7 day trial</p>
+        {/* Pricing Cards - Two Row Layout */}
+        <div className="max-w-7xl mx-auto">
+          {/* First Row: Trial, Basic, Pro */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+            {tiers.slice(0, 3).map((tier) => (
+              <div
+                key={tier.key}
+                className={`relative backdrop-blur-xl bg-white/10 border border-white/20 rounded-3xl p-8 transition-all duration-300 hover:scale-105 hover:bg-white/20 flex flex-col ${
+                  tier.popular ? 'ring-2 ring-cyan-400 shadow-2xl shadow-cyan-400/20' : ''
+                }`}
+              >
+                {tier.popular && (
+                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                    <span className="bg-gradient-to-r from-cyan-400 to-purple-400 text-white px-4 py-2 rounded-full text-sm font-semibold">
+                      Most Popular
+                    </span>
+                  </div>
                 )}
-              </div>
 
-              {/* Platform Access */}
-              <div className="mb-6">
-                <h4 className="text-sm font-semibold text-cyan-400 mb-3">PLATFORM ACCESS</h4>
-                <div className="flex flex-wrap gap-2">
-                  {tier.platformAccess.map((platform) => (
-                    <div
-                      key={platform}
-                      className="flex items-center gap-1 bg-white/10 rounded-full px-3 py-1 text-xs"
-                    >
-                      <span>{PLATFORM_ICONS[platform as keyof typeof PLATFORM_ICONS]}</span>
-                      <span className="text-white">{PLATFORM_NAMES[platform as keyof typeof PLATFORM_NAMES]}</span>
-                    </div>
-                  ))}
+                <div className="text-center mb-6">
+                  <h3 className="text-2xl font-bold text-white mb-2">{tier.name}</h3>
+                  <div className="text-4xl font-bold text-white mb-2">
+                    {tier.price === 0 ? 'Free' : `$${tier.price}`}
+                    {tier.price > 0 && <span className="text-lg text-slate-300">/month</span>}
+                  </div>
+                  {tier.key === 'trial' && (
+                    <p className="text-sm text-cyan-400">7 day trial</p>
+                  )}
+                </div>
+
+                {/* Platform Access */}
+                <div className="mb-6">
+                  <h4 className="text-sm font-semibold text-cyan-400 mb-3">PLATFORM ACCESS</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {tier.platformAccess.map((platform) => (
+                      <div
+                        key={platform}
+                        className="flex items-center gap-1 bg-white/10 rounded-full px-3 py-1 text-xs"
+                      >
+                        <span>{PLATFORM_ICONS[platform as keyof typeof PLATFORM_ICONS]}</span>
+                        <span className="text-white">{PLATFORM_NAMES[platform as keyof typeof PLATFORM_NAMES]}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Features - with flex-grow to push button down */}
+                <div className="mb-8 flex-grow">
+                  <h4 className="text-sm font-semibold text-cyan-400 mb-3">FEATURES</h4>
+                  <ul className="space-y-2">
+                    {tier.features.map((feature, index) => (
+                      <li key={index} className="flex items-start gap-2 text-sm text-slate-300">
+                        <span className="text-green-400 mt-0.5">✓</span>
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* CTA Button - Now at bottom with mt-auto */}
+                <div className="mt-auto">
+                  <button
+                    onClick={() => {
+                      if (tier.key === 'trial') {
+                        if (!user) {
+                          router.push('/auth');
+                        } else {
+                          router.push('/dashboard');
+                        }
+                      } else if (tier.priceId) {
+                        handleSubscribe(tier.key, tier.priceId);
+                      }
+                    }}
+                    disabled={loading === tier.key}
+                    className={`w-full py-3 px-6 rounded-xl font-semibold transition-all duration-200 ${
+                      tier.popular
+                        ? 'bg-gradient-to-r from-cyan-400 to-purple-400 text-white hover:shadow-lg hover:shadow-cyan-400/25'
+                        : 'bg-white/10 text-white border border-white/20 hover:bg-white/20'
+                    } ${loading === tier.key ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {loading === tier.key ? (
+                      'Processing...'
+                    ) : tier.key === 'trial' ? (
+                      user ? 'Start Free Trial' : 'Sign Up Free'
+                    ) : (
+                      'Get Started'
+                    )}
+                  </button>
                 </div>
               </div>
+            ))}
+          </div>
 
-              {/* Features - with flex-grow to push button down */}
-              <div className="mb-8 flex-grow">
-                <h4 className="text-sm font-semibold text-cyan-400 mb-3">FEATURES</h4>
-                <ul className="space-y-2">
-                  {tier.features.map((feature, index) => (
-                    <li key={index} className="flex items-start gap-2 text-sm text-slate-300">
-                      <span className="text-green-400 mt-0.5">✓</span>
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+          {/* Second Row: Business, Enterprise */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            {tiers.slice(3, 5).map((tier) => (
+              <div
+                key={tier.key}
+                className="relative backdrop-blur-xl bg-white/10 border border-white/20 rounded-3xl p-8 transition-all duration-300 hover:scale-105 hover:bg-white/20 flex flex-col"
+              >
+                <div className="text-center mb-6">
+                  <h3 className="text-2xl font-bold text-white mb-2">{tier.name}</h3>
+                  <div className="text-4xl font-bold text-white mb-2">
+                    ${tier.price}
+                    <span className="text-lg text-slate-300">/month</span>
+                  </div>
+                </div>
 
-              {/* CTA Button - Now at bottom with mt-auto */}
-              <div className="mt-auto">
-                <button
-                  onClick={() => {
-                    if (tier.key === 'trial') {
-                      if (!user) {
-                        router.push('/auth');
-                      } else {
-                        router.push('/dashboard');
+                {/* Platform Access */}
+                <div className="mb-6">
+                  <h4 className="text-sm font-semibold text-cyan-400 mb-3">PLATFORM ACCESS</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {tier.platformAccess.map((platform) => (
+                      <div
+                        key={platform}
+                        className="flex items-center gap-1 bg-white/10 rounded-full px-3 py-1 text-xs"
+                      >
+                        <span>{PLATFORM_ICONS[platform as keyof typeof PLATFORM_ICONS]}</span>
+                        <span className="text-white">{PLATFORM_NAMES[platform as keyof typeof PLATFORM_NAMES]}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Features - with flex-grow to push button down */}
+                <div className="mb-8 flex-grow">
+                  <h4 className="text-sm font-semibold text-cyan-400 mb-3">FEATURES</h4>
+                  <ul className="space-y-2">
+                    {tier.features.map((feature, index) => (
+                      <li key={index} className="flex items-start gap-2 text-sm text-slate-300">
+                        <span className="text-green-400 mt-0.5">✓</span>
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* CTA Button - Now at bottom with mt-auto */}
+                <div className="mt-auto">
+                  <button
+                    onClick={() => {
+                      if (tier.key === 'enterprise') {
+                        window.open('mailto:sales@contentmux.com?subject=Enterprise Plan Inquiry', '_blank');
+                      } else if (tier.priceId) {
+                        handleSubscribe(tier.key, tier.priceId);
                       }
-                    } else if (tier.priceId) {
-                      handleSubscribe(tier.key, tier.priceId);
-                    }
-                  }}
-                  disabled={loading === tier.key}
-                  className={`w-full py-3 px-6 rounded-xl font-semibold transition-all duration-200 ${
-                    tier.popular
-                      ? 'bg-gradient-to-r from-cyan-400 to-purple-400 text-white hover:shadow-lg hover:shadow-cyan-400/25'
-                      : tier.key === 'enterprise'
-                      ? 'bg-gradient-to-r from-yellow-400 to-orange-400 text-white hover:shadow-lg hover:shadow-yellow-400/25'
-                      : 'bg-white/10 text-white border border-white/20 hover:bg-white/20'
-                  } ${loading === tier.key ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  {loading === tier.key ? (
-                    'Processing...'
-                  ) : tier.key === 'trial' ? (
-                    user ? 'Start Free Trial' : 'Sign Up Free'
-                  ) : tier.key === 'enterprise' ? (
-                    'Contact Sales'
-                  ) : (
-                    'Get Started'
-                  )}
-                </button>
+                    }}
+                    disabled={loading === tier.key}
+                    className={`w-full py-3 px-6 rounded-xl font-semibold transition-all duration-200 ${
+                      tier.key === 'enterprise'
+                        ? 'bg-gradient-to-r from-yellow-400 to-orange-400 text-white hover:shadow-lg hover:shadow-yellow-400/25'
+                        : 'bg-gradient-to-r from-emerald-400 to-blue-400 text-white hover:shadow-lg hover:shadow-emerald-400/25'
+                    } ${loading === tier.key ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {loading === tier.key ? (
+                      'Processing...'
+                    ) : tier.key === 'enterprise' ? (
+                      'Contact Sales'
+                    ) : (
+                      'Get Started'
+                    )}
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
 
         {/* FAQ Section */}
