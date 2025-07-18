@@ -41,12 +41,12 @@ export default function BillingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
       {/* Animated Background */}
       <div className="absolute inset-0">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl animate-float"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl animate-float-delay"></div>
-        <div className="absolute top-3/4 left-1/2 w-64 h-64 bg-green-500/20 rounded-full blur-3xl animate-float-slow"></div>
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-pulse"></div>
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-pulse delay-1000"></div>
+        <div className="absolute top-3/4 left-1/2 w-64 h-64 bg-pink-500 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-pulse delay-500"></div>
       </div>
 
       <div className="relative pt-20 pb-12">
@@ -54,23 +54,25 @@ export default function BillingPage() {
           
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-4xl font-bold text-white mb-2 bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
-              Billing & Usage
+            <h1 className="text-4xl font-bold mb-6">
+              <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                Billing & Usage
+              </span>
             </h1>
-            <p className="text-white/60 text-lg">
+            <p className="text-slate-300 text-lg">
               Manage your subscription and track your content creation usage
             </p>
           </div>
 
           {/* Tab Navigation */}
           <div className="mb-8">
-            <div className="bg-black/20 backdrop-blur-md border border-white/10 rounded-xl p-1 inline-flex">
+            <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-1 inline-flex">
               <button
                 onClick={() => setActiveTab('usage')}
                 className={`px-6 py-3 rounded-lg font-medium transition-all duration-300 ${
                   activeTab === 'usage'
                     ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg'
-                    : 'text-white/60 hover:text-white hover:bg-white/10'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
                 }`}
               >
                 Usage & Plans
@@ -80,7 +82,7 @@ export default function BillingPage() {
                 className={`px-6 py-3 rounded-lg font-medium transition-all duration-300 ${
                   activeTab === 'billing'
                     ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg'
-                    : 'text-white/60 hover:text-white hover:bg-white/10'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
                 }`}
               >
                 Billing History
@@ -90,7 +92,7 @@ export default function BillingPage() {
                 className={`px-6 py-3 rounded-lg font-medium transition-all duration-300 ${
                   activeTab === 'payment'
                     ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg'
-                    : 'text-white/60 hover:text-white hover:bg-white/10'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
                 }`}
               >
                 Payment Methods
@@ -102,72 +104,72 @@ export default function BillingPage() {
           {activeTab === 'usage' && (
             <div className="space-y-6">
               {/* Current Plan */}
-              <div className="bg-black/40 backdrop-blur-md border border-white/10 rounded-2xl p-6">
+              <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-semibold text-white">Current Plan</h2>
-                  <div className="px-3 py-1 bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-500/30 rounded-full">
-                    <span className="text-green-400 text-sm font-medium">Free Trial</span>
+                  <div className="px-3 py-1 bg-gradient-to-r from-emerald-500/20 to-blue-500/20 border border-emerald-500/30 rounded-full">
+                    <span className="text-emerald-300 text-sm font-medium">Free Trial</span>
                   </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-white mb-1">3</div>
-                    <div className="text-white/60 text-sm">Jobs Remaining</div>
+                    <div className="text-slate-300 text-sm">Jobs Remaining</div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-white mb-1">7</div>
-                    <div className="text-white/60 text-sm">Days Left</div>
+                    <div className="text-slate-300 text-sm">Days Left</div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-white mb-1">$0</div>
-                    <div className="text-white/60 text-sm">Current Cost</div>
+                    <div className="text-slate-300 text-sm">Current Cost</div>
                   </div>
                 </div>
               </div>
 
               {/* Usage Statistics */}
-              <div className="bg-black/40 backdrop-blur-md border border-white/10 rounded-2xl p-6">
+              <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
                 <h2 className="text-xl font-semibold text-white mb-4">This Month's Usage</h2>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-white/80">Content Jobs Used</span>
+                    <span className="text-slate-300">Content Jobs Used</span>
                     <span className="text-white font-medium">0 / 3</span>
                   </div>
-                  <div className="w-full bg-white/10 rounded-full h-2">
+                  <div className="w-full bg-slate-700/50 rounded-full h-2">
                     <div className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full" style={{ width: '0%' }}></div>
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4">
                     <div className="text-center">
                       <div className="text-lg font-semibold text-white">0</div>
-                      <div className="text-white/60 text-sm">LinkedIn Posts</div>
+                      <div className="text-slate-300 text-sm">LinkedIn Posts</div>
                     </div>
                     <div className="text-center">
                       <div className="text-lg font-semibold text-white">0</div>
-                      <div className="text-white/60 text-sm">Twitter Threads</div>
+                      <div className="text-slate-300 text-sm">Twitter Threads</div>
                     </div>
                     <div className="text-center">
                       <div className="text-lg font-semibold text-white">0</div>
-                      <div className="text-white/60 text-sm">Instagram Posts</div>
+                      <div className="text-slate-300 text-sm">Instagram Posts</div>
                     </div>
                     <div className="text-center">
                       <div className="text-lg font-semibold text-white">0</div>
-                      <div className="text-white/60 text-sm">Blog Articles</div>
+                      <div className="text-slate-300 text-sm">Blog Articles</div>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Available Plans */}
-              <div className="bg-black/40 backdrop-blur-md border border-white/10 rounded-2xl p-6">
+              <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
                 <h2 className="text-xl font-semibold text-white mb-6">Upgrade Your Plan</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {/* Basic Plan */}
-                  <div className="bg-black/40 backdrop-blur-md border border-white/10 rounded-xl p-6 hover:border-blue-500/50 transition-all duration-300">
+                  <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6 hover:border-blue-500/50 transition-all duration-300">
                     <div className="text-center">
                       <h3 className="text-lg font-semibold text-white mb-2">Basic</h3>
                       <div className="text-3xl font-bold text-white mb-1">$29</div>
-                      <div className="text-white/60 text-sm mb-4">per month</div>
-                      <div className="space-y-2 text-sm text-white/80 mb-6">
+                      <div className="text-slate-300 text-sm mb-4">per month</div>
+                      <div className="space-y-2 text-sm text-slate-300 mb-6">
                         <div>20 content jobs/month</div>
                         <div>All platforms</div>
                         <div>Basic support</div>
@@ -179,7 +181,7 @@ export default function BillingPage() {
                   </div>
 
                   {/* Pro Plan */}
-                  <div className="bg-black/40 backdrop-blur-md border border-purple-500/50 rounded-xl p-6 relative">
+                  <div className="bg-slate-800/50 backdrop-blur-sm border border-purple-500/50 rounded-xl p-6 relative">
                     <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
                       <span className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs font-semibold px-3 py-1 rounded-full">
                         Most Popular
@@ -188,8 +190,8 @@ export default function BillingPage() {
                     <div className="text-center">
                       <h3 className="text-lg font-semibold text-white mb-2">Pro</h3>
                       <div className="text-3xl font-bold text-white mb-1">$79</div>
-                      <div className="text-white/60 text-sm mb-4">per month</div>
-                      <div className="space-y-2 text-sm text-white/80 mb-6">
+                      <div className="text-slate-300 text-sm mb-4">per month</div>
+                      <div className="space-y-2 text-sm text-slate-300 mb-6">
                         <div>100 content jobs/month</div>
                         <div>Advanced features</div>
                         <div>Priority support</div>
@@ -201,17 +203,17 @@ export default function BillingPage() {
                   </div>
 
                   {/* Business Plan */}
-                  <div className="bg-black/40 backdrop-blur-md border border-white/10 rounded-xl p-6 hover:border-green-500/50 transition-all duration-300">
+                  <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6 hover:border-emerald-500/50 transition-all duration-300">
                     <div className="text-center">
                       <h3 className="text-lg font-semibold text-white mb-2">Business</h3>
                       <div className="text-3xl font-bold text-white mb-1">$199</div>
-                      <div className="text-white/60 text-sm mb-4">per month</div>
-                      <div className="space-y-2 text-sm text-white/80 mb-6">
+                      <div className="text-slate-300 text-sm mb-4">per month</div>
+                      <div className="space-y-2 text-sm text-slate-300 mb-6">
                         <div>500 content jobs/month</div>
                         <div>Team features</div>
                         <div>Dedicated support</div>
                       </div>
-                      <button className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold py-2 px-4 rounded-lg hover:scale-105 transition duration-300">
+                      <button className="w-full bg-gradient-to-r from-emerald-500 to-blue-500 text-white font-semibold py-2 px-4 rounded-lg hover:scale-105 transition duration-300">
                         Coming Soon
                       </button>
                     </div>
@@ -223,12 +225,12 @@ export default function BillingPage() {
 
           {/* Billing History Tab */}
           {activeTab === 'billing' && (
-            <div className="bg-black/40 backdrop-blur-md border border-white/10 rounded-2xl p-6">
+            <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
               <h2 className="text-xl font-semibold text-white mb-6">Billing History</h2>
               <div className="text-center py-12">
                 <div className="text-6xl mb-4">📄</div>
                 <h3 className="text-lg font-medium text-white mb-2">No Billing History</h3>
-                <p className="text-white/60 mb-6">
+                <p className="text-slate-300 mb-6">
                   You're currently on the free trial. Your billing history will appear here once you upgrade to a paid plan.
                 </p>
                 <button
@@ -243,12 +245,12 @@ export default function BillingPage() {
 
           {/* Payment Methods Tab */}
           {activeTab === 'payment' && (
-            <div className="bg-black/40 backdrop-blur-md border border-white/10 rounded-2xl p-6">
+            <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
               <h2 className="text-xl font-semibold text-white mb-6">Payment Methods</h2>
               <div className="text-center py-12">
                 <div className="text-6xl mb-4">💳</div>
                 <h3 className="text-lg font-medium text-white mb-2">No Payment Methods</h3>
-                <p className="text-white/60 mb-6">
+                <p className="text-slate-300 mb-6">
                   Add a payment method to upgrade your plan and continue creating content after your trial ends.
                 </p>
                 <button
@@ -274,7 +276,7 @@ export default function BillingPage() {
             </Link>
             <Link 
               href="/settings"
-              className="bg-black/40 backdrop-blur-md border border-white/10 text-white font-semibold text-center py-3 px-6 rounded-lg hover:bg-white/10 hover:scale-105 transition duration-300"
+              className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 text-white font-semibold text-center py-3 px-6 rounded-lg hover:bg-slate-700/50 hover:scale-105 transition duration-300"
             >
               Account Settings
             </Link>
