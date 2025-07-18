@@ -6,7 +6,6 @@ import { SUBSCRIPTION_TIERS } from '@/lib/subscription-config';
 // GET - Fetch user subscription
 export async function GET(request: NextRequest) {
   try {
-    // Create Supabase client inside the function
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -47,10 +46,9 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Create or update subscription (for testing)
+// POST - Create or update subscription (for testing and Stripe integration)
 export async function POST(request: NextRequest) {
   try {
-    // Create Supabase client inside the function
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -87,11 +85,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Calculate period dates
-    const now = new Date();
-    const periodStart = now.toISOString();
-    const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days
-
     // Check if subscription already exists
     const { data: existingSubscription } = await supabase
       .from('subscriptions')
@@ -108,9 +101,7 @@ export async function POST(request: NextRequest) {
         .update({
           tier: tier,
           status: 'active',
-          current_period_start: periodStart,
-          current_period_end: periodEnd,
-          updated_at: now.toISOString()
+          updated_at: new Date().toISOString()
         })
         .eq('user_id', userId)
         .select()
@@ -125,9 +116,7 @@ export async function POST(request: NextRequest) {
         .insert({
           user_id: userId,
           tier: tier,
-          status: 'active',
-          current_period_start: periodStart,
-          current_period_end: periodEnd
+          status: 'active'
         })
         .select()
         .single();
@@ -165,7 +154,6 @@ export async function POST(request: NextRequest) {
 // DELETE - Cancel subscription (for testing)
 export async function DELETE(request: NextRequest) {
   try {
-    // Create Supabase client inside the function
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
