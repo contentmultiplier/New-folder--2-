@@ -39,7 +39,7 @@ export const SUBSCRIPTION_TIERS = {
   basic: {
     name: 'ContentMultiplier Basic',
     price: 29,
-    priceId: 'prod_ShTs9fA0aP6Yp2',
+    priceId: 'price_1RkJWJF9hnElfa3LLkSIttrw',
     features: [
       '20 content transformations/month',
       '4 platforms (LinkedIn, Twitter, Facebook, Instagram)',
@@ -54,7 +54,7 @@ export const SUBSCRIPTION_TIERS = {
   pro: {
     name: 'ContentMultiplier Pro',
     price: 79,
-    priceId: 'prod_ShTsqMfbpk6t1R',
+    priceId: 'price_1RkJYNF9hnElfa3L22s4YRWT',
     features: [
       '100 content transformations/month',
       'ALL 5 platforms (LinkedIn, Twitter, Facebook, Instagram, YouTube)',
@@ -69,7 +69,7 @@ export const SUBSCRIPTION_TIERS = {
   business: {
     name: 'ContentMultiplier Business',
     price: 199,
-    priceId: 'prod_ShTs7HVVCmLDbc',
+    priceId: 'price_1RkJZXF9hnElfa3LRSS2JdoZ',
     features: [
       '500 content transformations/month',
       'ALL 6 platforms (LinkedIn, Twitter, Facebook, Instagram, YouTube, TikTok)',
@@ -85,7 +85,7 @@ export const SUBSCRIPTION_TIERS = {
   enterprise: {
     name: 'ContentMultiplier Enterprise',
     price: 499,
-    priceId: 'prod_ShTs6OAqDAkzoJ',
+    priceId: 'price_1RkJaEF9hnElfa3LeQO36jbA',
     features: [
       'Unlimited transformations',
       'ALL 6 platforms (LinkedIn, Twitter, Facebook, Instagram, YouTube, TikTok)',
