@@ -1,22 +1,30 @@
 'use client';
 
 import { useAuth } from '@/lib/auth-context';
+import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase';
 
 interface ContentItem {
   id: string;
   original_content: string;
   content_type: string;
   created_at: string;
+  platforms_generated?: string[];
 }
 
 interface UsageStats {
   used: number;
   limit: number;
   tier: string;
+}
+
+interface DashboardMetrics {
+  totalContentGenerated: number;
+  totalPlatformsUsed: number;
+  avgProcessingTime: string;
+  timeSaved: string;
 }
 
 export default function Dashboard() {
@@ -28,6 +36,12 @@ export default function Dashboard() {
     limit: 3,
     tier: 'Free Trial'
   });
+  const [metrics, setMetrics] = useState<DashboardMetrics>({
+    totalContentGenerated: 0,
+    totalPlatformsUsed: 0,
+    avgProcessingTime: '45s',
+    timeSaved: '0 hours'
+  });
 
   // Redirect to auth if not logged in
   useEffect(() => {
@@ -37,63 +51,88 @@ export default function Dashboard() {
   }, [user, loading, router]);
 
   // Fetch real data from Supabase
-useEffect(() => {
-  const fetchDashboardData = async () => {
-    if (!user) return;
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      if (!user) return;
 
-    try {
-      const supabase = createClient();
+      try {
+        const supabase = createClient();
 
-      // Fetch user subscription data
-      const subscriptionResponse = await fetch(`/api/user-subscription?userId=${user.id}`);
-      const subscriptionData = await subscriptionResponse.json();
+        // Fetch user subscription data
+        const subscriptionResponse = await fetch(`/api/user-subscription?userId=${user.id}`);
+        const subscriptionData = await subscriptionResponse.json();
 
-      if (subscriptionResponse.ok) {
-        const tierLimits = {
-          trial: { jobs: 3, platforms: ['linkedin', 'twitter'] },
-          basic: { jobs: 20, platforms: ['linkedin', 'twitter', 'facebook', 'instagram'] },
-          pro: { jobs: 100, platforms: ['linkedin', 'twitter', 'facebook', 'instagram', 'youtube'] },
-          business: { jobs: 500, platforms: ['linkedin', 'twitter', 'facebook', 'instagram', 'youtube', 'tiktok'] },
-          enterprise: { jobs: 999999, platforms: ['linkedin', 'twitter', 'facebook', 'instagram', 'youtube', 'tiktok'] },
-        };
+        if (subscriptionResponse.ok) {
+          const tierLimits = {
+            trial: { jobs: 3, platforms: ['linkedin', 'twitter'] },
+            basic: { jobs: 20, platforms: ['linkedin', 'twitter', 'facebook', 'instagram'] },
+            pro: { jobs: 100, platforms: ['linkedin', 'twitter', 'facebook', 'instagram', 'youtube'] },
+            business: { jobs: 500, platforms: ['linkedin', 'twitter', 'facebook', 'instagram', 'youtube', 'tiktok'] },
+            enterprise: { jobs: 999999, platforms: ['linkedin', 'twitter', 'facebook', 'instagram', 'youtube', 'tiktok'] },
+          };
 
-        const userTier = subscriptionData.tier || 'trial';
-        const limits = tierLimits[userTier as keyof typeof tierLimits] || tierLimits.trial;
+          const userTier = subscriptionData.tier || 'trial';
+          const limits = tierLimits[userTier as keyof typeof tierLimits] || tierLimits.trial;
 
+          setUsageStats({
+            used: subscriptionData.jobs_used_this_month || 0,
+            limit: limits.jobs,
+            tier: userTier === 'trial' ? 'Free Trial' : userTier.charAt(0).toUpperCase() + userTier.slice(1)
+          });
+        }
+
+        // Fetch recent content
+        const { data: contentData, error: contentError } = await supabase
+          .from('content')
+          .select('id, original_content, content_type, created_at, platforms_generated')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(3);
+
+        if (contentError) {
+          console.error('Error fetching content:', contentError);
+        } else {
+          setRecentContent(contentData || []);
+        }
+
+        // Fetch all content for metrics
+        const { data: allContentData, error: allContentError } = await supabase
+          .from('content')
+          .select('id, platforms_generated, created_at')
+          .eq('user_id', user.id);
+
+        if (!allContentError && allContentData) {
+          // Calculate metrics
+          const totalContentGenerated = allContentData.length;
+          const totalPlatformsUsed = allContentData.reduce((total, item) => {
+            return total + (Array.isArray(item.platforms_generated) ? item.platforms_generated.length : 1);
+          }, 0);
+
+          // Calculate average time saved (estimate 3 hours per piece of content)
+          const hoursPerContent = 3;
+          const totalTimeSaved = totalContentGenerated * hoursPerContent;
+
+          setMetrics({
+            totalContentGenerated,
+            totalPlatformsUsed,
+            avgProcessingTime: '45s', // This would need to be tracked in usage_tracking table
+            timeSaved: totalTimeSaved > 0 ? `${totalTimeSaved} hour${totalTimeSaved > 1 ? 's' : ''}` : '0 hours'
+          });
+        }
+
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        // Fallback to default values
         setUsageStats({
-          used: subscriptionData.jobs_used_this_month || 0,
-          limit: limits.jobs,
-          tier: userTier === 'trial' ? 'Free Trial' : userTier.charAt(0).toUpperCase() + userTier.slice(1)
+          used: 0,
+          limit: 3,
+          tier: 'Free Trial'
         });
       }
+    };
 
-      // Fetch recent content
-      const { data: contentData, error: contentError } = await supabase
-        .from('content')
-        .select('id, original_content, content_type, created_at')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(3);
-
-      if (contentError) {
-        console.error('Error fetching content:', contentError);
-      } else {
-        setRecentContent(contentData || []);
-      }
-
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-      // Fallback to default values
-      setUsageStats({
-        used: 0,
-        limit: 3,
-        tier: 'Free Trial'
-      });
-    }
-  };
-
-  fetchDashboardData();
-}, [user]);
+    fetchDashboardData();
+  }, [user]);
 
   if (loading) {
     return (
@@ -137,6 +176,26 @@ useEffect(() => {
     if (percentage >= 90) return 'text-red-400';
     if (percentage >= 70) return 'text-yellow-400';
     return 'text-emerald-400';
+  };
+
+  const getContentTypeIcon = (contentType: string) => {
+    switch (contentType?.toLowerCase()) {
+      case 'blog_post':
+        return '📖';
+      case 'video_script':
+        return '🎬';
+      case 'podcast':
+        return '🎙️';
+      case 'visual_story':
+        return '📸';
+      default:
+        return '📝';
+    }
+  };
+
+  const formatContentType = (contentType: string) => {
+    if (!contentType) return 'Content';
+    return contentType.charAt(0).toUpperCase() + contentType.slice(1).replace('_', ' ');
   };
 
   return (
@@ -227,10 +286,10 @@ useEffect(() => {
                 </div>
                 <h3 className="text-white font-semibold mb-2">Time Saved</h3>
                 <div className="text-3xl font-bold bg-gradient-to-r from-emerald-400 to-blue-400 bg-clip-text text-transparent mb-2">
-                  ~6 hours
+                  ~{metrics.timeSaved}
                 </div>
                 <p className="text-slate-400 text-sm">
-                  Based on {usageStats.used} transformations
+                  Based on {metrics.totalContentGenerated} transformation{metrics.totalContentGenerated !== 1 ? 's' : ''}
                 </p>
               </div>
             </div>
@@ -277,39 +336,45 @@ useEffect(() => {
                 
                 {recentContent.length > 0 ? (
                   <div className="space-y-4">
-                    {recentContent.map((item, index) => (
-                      <div 
-                        key={item.id}
-                        className="group relative"
-                      >
-                        <div className="absolute -inset-1 bg-gradient-to-r from-slate-600 to-slate-500 rounded-xl blur opacity-0 group-hover:opacity-25 transition duration-300"></div>
-                        <div className="relative bg-slate-700/30 border border-slate-600/50 rounded-lg p-6 hover:bg-slate-700/50 transition-all duration-300">
-                          <div className="flex items-start justify-between mb-4">
-                            <div className="flex items-center gap-3">
-                              <div className={`w-3 h-3 rounded-full bg-gradient-to-r ${
-                                index === 0 ? 'from-blue-400 to-purple-400' :
-                                index === 1 ? 'from-purple-400 to-pink-400' :
-                                'from-pink-400 to-red-400'
-                              }`}></div>
-                              <span className="text-blue-400 font-semibold">
-                                {item.content_type?.charAt(0).toUpperCase() + item.content_type?.slice(1).replace('_', ' ') || 'Content'}
+                    {recentContent.map((item, index) => {
+                      const platformCount = Array.isArray(item.platforms_generated) ? item.platforms_generated.length : 1;
+                      const contentTypeIcon = getContentTypeIcon(item.content_type);
+                      
+                      return (
+                        <div 
+                          key={item.id}
+                          className="group relative"
+                        >
+                          <div className="absolute -inset-1 bg-gradient-to-r from-slate-600 to-slate-500 rounded-xl blur opacity-0 group-hover:opacity-25 transition duration-300"></div>
+                          <div className="relative bg-slate-700/30 border border-slate-600/50 rounded-lg p-6 hover:bg-slate-700/50 transition-all duration-300">
+                            <div className="flex items-start justify-between mb-4">
+                              <div className="flex items-center gap-3">
+                                <div className={`w-3 h-3 rounded-full bg-gradient-to-r ${
+                                  index === 0 ? 'from-blue-400 to-purple-400' :
+                                  index === 1 ? 'from-purple-400 to-pink-400' :
+                                  'from-pink-400 to-red-400'
+                                }`}></div>
+                                <span className="text-blue-400 font-semibold flex items-center gap-2">
+                                  <span>{contentTypeIcon}</span>
+                                  {formatContentType(item.content_type)}
+                                </span>
+                              </div>
+                              <span className="text-slate-400 text-sm">
+                                {formatDate(item.created_at)}
                               </span>
                             </div>
-                            <span className="text-slate-400 text-sm">
-                              {formatDate(item.created_at)}
-                            </span>
-                          </div>
-                          <p className="text-slate-300 leading-relaxed line-clamp-2">
-                            {item.original_content}
-                          </p>
-                          <div className="mt-4 flex items-center text-slate-400 text-sm">
-                            <span className="mr-4">📊 5 platforms</span>
-                            <span className="mr-4">🏷️ Hashtags included</span>
-                            <span>⚡ Processed in 45s</span>
+                            <p className="text-slate-300 leading-relaxed line-clamp-2">
+                              {item.original_content}
+                            </p>
+                            <div className="mt-4 flex items-center text-slate-400 text-sm">
+                              <span className="mr-4">📊 {platformCount} platform{platformCount > 1 ? 's' : ''}</span>
+                              <span className="mr-4">🏷️ Hashtags included</span>
+                              <span>⚡ Generated successfully</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="text-center py-16">
@@ -400,10 +465,10 @@ useEffect(() => {
           {/* Performance Metrics */}
           <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-6">
             {[
-              { label: "Avg Processing Time", value: "45s", gradient: "from-blue-400 to-purple-400" },
-              { label: "Platforms Supported", value: "5", gradient: "from-purple-400 to-pink-400" },
-              { label: "Content Generated", value: `${recentContent.length}`, gradient: "from-pink-400 to-red-400" },
-              { label: "Success Rate", value: "99%", gradient: "from-emerald-400 to-blue-400" }
+              { label: "Avg Processing Time", value: metrics.avgProcessingTime, gradient: "from-blue-400 to-purple-400" },
+              { label: "Platforms Generated", value: `${metrics.totalPlatformsUsed}`, gradient: "from-purple-400 to-pink-400" },
+              { label: "Content Created", value: `${metrics.totalContentGenerated}`, gradient: "from-pink-400 to-red-400" },
+              { label: "Success Rate", value: "100%", gradient: "from-emerald-400 to-blue-400" }
             ].map((metric, index) => (
               <div key={index} className="text-center">
                 <div className={`text-3xl font-bold bg-gradient-to-r ${metric.gradient} bg-clip-text text-transparent mb-2`}>
