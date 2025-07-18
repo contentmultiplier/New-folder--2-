@@ -1,6 +1,7 @@
 'use client';
 
 import { useAuth } from '@/lib/auth-context';
+import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -10,19 +11,23 @@ interface ContentItem {
   original_content: string;
   content_type: string;
   created_at: string;
-  platform_content: {
-    twitter: string;
-    linkedin: string;
-    instagram: string;
-    facebook: string;
-    tiktok: string;
+  platforms_generated: string[];
+  platform_content?: {
+    [key: string]: string;
   };
-  hashtags: {
-    twitter: string[];
-    linkedin: string[];
-    instagram: string[];
-    facebook: string[];
-    tiktok: string[];
+  hashtags?: {
+    [key: string]: string[];
+  };
+}
+
+interface PlatformContentItem {
+  id: string;
+  content_id: string;
+  platform: string;
+  generated_text: string;
+  metadata: {
+    hashtags?: string[];
+    generated_at?: string;
   };
 }
 
@@ -35,6 +40,7 @@ export default function History() {
   const [sortBy, setSortBy] = useState('newest');
   const [selectedContent, setSelectedContent] = useState<ContentItem | null>(null);
   const [copiedPlatform, setCopiedPlatform] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Redirect to auth if not logged in
   useEffect(() => {
@@ -43,76 +49,78 @@ export default function History() {
     }
   }, [user, loading, router]);
 
-  // Mock data for now - we'll connect to real database later
+  // Fetch real data from Supabase
   useEffect(() => {
-    if (user) {
-      const mockContent: ContentItem[] = [
-        {
-          id: '1',
-          original_content: 'How to build a successful SaaS product from scratch. This comprehensive guide covers everything from idea validation to scaling your business. We\'ll explore market research, MVP development, customer feedback loops, and strategic scaling approaches that have helped hundreds of startups achieve product-market fit and sustainable growth.',
-          content_type: 'Blog Post',
-          created_at: '2024-07-15T10:30:00Z',
-          platform_content: {
-            twitter: '🚀 Building a successful SaaS? Here\'s what I learned from 0 to $100K ARR:\n\n✅ Validate before you build\n✅ Talk to customers daily\n✅ Focus on one core feature\n✅ Price based on value\n\nThread below 👇',
-            linkedin: 'After helping dozens of founders build successful SaaS products, I\'ve identified the key patterns that separate winners from failures.\n\nThe most successful founders don\'t just build features - they solve real problems that people are willing to pay for.',
-            instagram: '✨ SaaS Success Formula ✨\n\n1️⃣ Find a real problem\n2️⃣ Validate with customers\n3️⃣ Build MVP fast\n4️⃣ Iterate based on feedback\n5️⃣ Scale what works\n\nWhat\'s your biggest SaaS challenge?',
-            facebook: 'Building a SaaS product? Here are the 5 critical steps that determine success:\n\n1. Problem validation\n2. Customer discovery\n3. MVP development\n4. Feedback loops\n5. Strategic scaling',
-            tiktok: '5 SaaS mistakes that kill startups:\n\n❌ Building without validation\n❌ Ignoring customer feedback\n❌ Over-engineering features\n❌ Wrong pricing strategy\n❌ No clear value prop'
-          },
-          hashtags: {
-            twitter: ['#SaaS', '#Startup', '#Entrepreneur', '#TechTips'],
-            linkedin: ['#SaaS', '#StartupLife', '#ProductManagement', '#TechLeadership'],
-            instagram: ['#saas', '#startup', '#entrepreneur', '#techlife', '#businesstips'],
-            facebook: ['#SaaS', '#StartupAdvice', '#TechBusiness'],
-            tiktok: ['#saas', '#startup', '#techtips', '#entrepreneur', '#business']
-          }
-        },
-        {
-          id: '2',
-          original_content: 'Top 10 productivity tips for content creators. Time management strategies that actually work and have been tested by thousands of creators. From batching content creation to automating workflows, these techniques will help you create more content in less time while maintaining quality and consistency.',
-          content_type: 'Video Script',
-          created_at: '2024-07-14T15:20:00Z',
-          platform_content: {
-            twitter: '⏰ 10 productivity hacks for creators:\n\n1. Batch similar tasks\n2. Use time blocking\n3. Automate repetitive work\n4. Set clear boundaries\n5. Track your energy levels\n\nWhich one changed your game? 👇',
-            linkedin: 'As content creators, our time is our most valuable asset. Here are 10 productivity strategies that have transformed how I work and can do the same for you.',
-            instagram: '🎯 PRODUCTIVITY TIPS FOR CREATORS 🎯\n\n✨ Batch content creation\n✨ Time block your calendar\n✨ Automate social posts\n✨ Set creative boundaries\n✨ Track energy patterns\n\nSave this post! 📌',
-            facebook: 'Fellow creators! Here are my top 10 productivity tips that have helped me create more content in less time while maintaining quality.',
-            tiktok: 'POV: You want to be more productive as a creator 📈\n\nTry these 5 game-changing tips:\n\n1. Batch filming days\n2. Template everything\n3. Automate posting\n4. Set boundaries\n5. Track what works'
-          },
-          hashtags: {
-            twitter: ['#Productivity', '#ContentCreator', '#TimeManagement', '#CreatorTips'],
-            linkedin: ['#Productivity', '#ContentCreation', '#CreatorEconomy', '#TimeManagement'],
-            instagram: ['#productivity', '#contentcreator', '#creatorlife', '#timemanagement', '#tips'],
-            facebook: ['#Productivity', '#ContentCreators', '#CreatorTips'],
-            tiktok: ['#productivity', '#contentcreator', '#creatorhacks', '#timemanagement']
-          }
-        },
-        {
-          id: '3',
-          original_content: 'The future of AI in marketing is here. How businesses are using artificial intelligence to revolutionize customer engagement, personalize experiences, and drive unprecedented growth. From predictive analytics to automated content creation, AI is transforming every aspect of modern marketing strategies.',
-          content_type: 'Podcast',
-          created_at: '2024-07-13T09:15:00Z',
-          platform_content: {
-            twitter: '🤖 AI is transforming marketing:\n\n• Personalized customer journeys\n• Predictive analytics\n• Automated content creation\n• Real-time optimization\n\nWhat AI tools are you using in your marketing? 🧵',
-            linkedin: 'The marketing landscape is evolving rapidly with AI integration. Companies that embrace these technologies now will have a significant competitive advantage in the coming years.',
-            instagram: '🚀 AI + MARKETING = GAME CHANGER 🚀\n\n🎯 Hyper-personalization\n📊 Predictive insights\n⚡ Automated workflows\n📈 Better ROI\n\nThe future is now! ✨',
-            facebook: 'Exploring how AI is revolutionizing marketing strategies and customer engagement. The possibilities are endless for businesses ready to innovate.',
-            tiktok: 'Marketing with AI be like:\n\n✅ Know your customer better\n✅ Predict what they want\n✅ Create content automatically\n✅ Optimize in real-time\n\nMind = blown 🤯'
-          },
-          hashtags: {
-            twitter: ['#AIMarketing', '#MarTech', '#ArtificialIntelligence', '#DigitalMarketing'],
-            linkedin: ['#AIMarketing', '#MarketingTech', '#DigitalTransformation', '#CustomerExperience'],
-            instagram: ['#aimarketing', '#digitalmarketing', '#martech', '#ai', '#marketing'],
-            facebook: ['#AIMarketing', '#DigitalMarketing', '#MarketingTech'],
-            tiktok: ['#aimarketing', '#digitalmarketing', '#ai', '#martech', '#business']
-          }
+    const fetchContentHistory = async () => {
+      if (!user) return;
+
+      try {
+        setIsLoading(true);
+        const supabase = createClient();
+
+        // Fetch content with platform content
+        const { data: contentData, error: contentError } = await supabase
+          .from('content')
+          .select(`
+            id,
+            original_content,
+            content_type,
+            created_at,
+            platforms_generated,
+            platform_content (
+              id,
+              content_id,
+              platform,
+              generated_text,
+              metadata
+            )
+          `)
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (contentError) {
+          console.error('Error fetching content:', contentError);
+          return;
         }
-      ];
-      setContent(mockContent);
-    }
+
+        // Transform the data to match our interface
+        const transformedContent: ContentItem[] = (contentData || []).map(item => {
+          const platformContent: { [key: string]: string } = {};
+          const hashtags: { [key: string]: string[] } = {};
+
+          // Process platform content
+          if (item.platform_content) {
+            item.platform_content.forEach((pc: PlatformContentItem) => {
+              platformContent[pc.platform] = pc.generated_text;
+              if (pc.metadata?.hashtags) {
+                hashtags[pc.platform] = pc.metadata.hashtags;
+              }
+            });
+          }
+
+          return {
+            id: item.id,
+            original_content: item.original_content,
+            content_type: item.content_type,
+            created_at: item.created_at,
+            platforms_generated: item.platforms_generated || [],
+            platform_content: platformContent,
+            hashtags: hashtags
+          };
+        });
+
+        setContent(transformedContent);
+      } catch (error) {
+        console.error('Error fetching content history:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchContentHistory();
   }, [user]);
 
-  if (loading) {
+  if (loading || isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
         <div className="relative">
@@ -170,10 +178,11 @@ export default function History() {
 
   const getPlatformConfig = (platform: string) => {
     const configs: { [key: string]: { icon: string, name: string, gradient: string, color: string } } = {
-      twitter: { icon: '🐦', name: 'Twitter', gradient: 'from-blue-400 to-blue-600', color: 'text-blue-400' },
+      twitter: { icon: '🐦', name: 'Twitter/X', gradient: 'from-blue-400 to-blue-600', color: 'text-blue-400' },
       linkedin: { icon: '💼', name: 'LinkedIn', gradient: 'from-blue-600 to-blue-800', color: 'text-blue-500' },
       instagram: { icon: '📸', name: 'Instagram', gradient: 'from-pink-500 to-purple-600', color: 'text-pink-400' },
       facebook: { icon: '👥', name: 'Facebook', gradient: 'from-blue-500 to-blue-700', color: 'text-blue-400' },
+      youtube: { icon: '📺', name: 'YouTube', gradient: 'from-red-500 to-red-600', color: 'text-red-400' },
       tiktok: { icon: '🎵', name: 'TikTok', gradient: 'from-pink-400 to-red-500', color: 'text-pink-400' }
     };
     return configs[platform] || { icon: '📱', name: platform, gradient: 'from-gray-400 to-gray-600', color: 'text-gray-400' };
@@ -181,12 +190,17 @@ export default function History() {
 
   const getContentTypeConfig = (type: string) => {
     const configs: { [key: string]: { icon: string, gradient: string } } = {
-      'Blog Post': { icon: '📝', gradient: 'from-blue-500 to-purple-500' },
-      'Video Script': { icon: '🎬', gradient: 'from-purple-500 to-pink-500' },
-      'Podcast': { icon: '🎙️', gradient: 'from-pink-500 to-red-500' },
-      'Visual Story': { icon: '🖼️', gradient: 'from-emerald-500 to-blue-500' }
+      'blog_post': { icon: '📝', gradient: 'from-blue-500 to-purple-500' },
+      'video_script': { icon: '🎬', gradient: 'from-purple-500 to-pink-500' },
+      'podcast': { icon: '🎙️', gradient: 'from-pink-500 to-red-500' },
+      'visual_story': { icon: '🖼️', gradient: 'from-emerald-500 to-blue-500' }
     };
     return configs[type] || { icon: '📄', gradient: 'from-gray-500 to-gray-700' };
+  };
+
+  const formatContentType = (contentType: string) => {
+    if (!contentType) return 'Content';
+    return contentType.charAt(0).toUpperCase() + contentType.slice(1).replace('_', ' ');
   };
 
   return (
@@ -215,6 +229,41 @@ export default function History() {
             <p className="text-xl text-slate-300 max-w-3xl mx-auto">
               View, search, and manage all your AI-transformed content. Copy platform-optimized posts and hashtags with one click.
             </p>
+          </div>
+
+          {/* Stats Bar */}
+          <div className="group relative mb-12">
+            <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-blue-500 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-300"></div>
+            <div className="relative bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 p-6 rounded-xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-8">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold bg-gradient-to-r from-emerald-400 to-blue-400 bg-clip-text text-transparent">
+                      {content.length}
+                    </div>
+                    <div className="text-slate-400 text-sm">Total Content</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                      {content.reduce((total, item) => total + (item.platforms_generated?.length || 0), 0)}
+                    </div>
+                    <div className="text-slate-400 text-sm">Platform Posts</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+                      {content.length * 3}h
+                    </div>
+                    <div className="text-slate-400 text-sm">Time Saved</div>
+                  </div>
+                </div>
+                <Link href="/create-content" className="group relative">
+                  <div className="absolute -inset-1 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl blur opacity-75 group-hover:opacity-100 transition duration-300"></div>
+                  <div className="relative bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold px-6 py-3 rounded-lg hover:scale-105 transition duration-300">
+                    ✨ Create New Content
+                  </div>
+                </Link>
+              </div>
+            </div>
           </div>
 
           {/* Filters and Search */}
@@ -258,10 +307,10 @@ export default function History() {
                       className="w-full bg-slate-700/50 border border-slate-600/50 rounded-xl px-4 py-3 text-white focus:border-purple-500/50 focus:ring-4 focus:ring-purple-500/20 transition-all duration-300"
                     >
                       <option value="all">All Types</option>
-                      <option value="blog">Blog Post</option>
-                      <option value="video">Video Script</option>
+                      <option value="blog_post">Blog Post</option>
+                      <option value="video_script">Video Script</option>
                       <option value="podcast">Podcast</option>
-                      <option value="visual">Visual Story</option>
+                      <option value="visual_story">Visual Story</option>
                     </select>
                     <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
                   </div>
@@ -298,6 +347,7 @@ export default function History() {
               {filteredContent.map((item, index) => {
                 const typeConfig = getContentTypeConfig(item.content_type);
                 const isExpanded = selectedContent?.id === item.id;
+                const platformCount = item.platforms_generated?.length || 0;
                 
                 return (
                   <div key={item.id} className="group relative">
@@ -313,10 +363,10 @@ export default function History() {
                             </div>
                             <div>
                               <span className={`bg-gradient-to-r ${typeConfig.gradient} bg-clip-text text-transparent font-bold text-lg`}>
-                                {item.content_type}
+                                {formatContentType(item.content_type)}
                               </span>
                               <div className="text-slate-400 text-sm mt-1">
-                                Created {formatDate(item.created_at)}
+                                Created {formatDate(item.created_at)} • {platformCount} platform{platformCount !== 1 ? 's' : ''}
                               </div>
                             </div>
                           </div>
@@ -346,56 +396,66 @@ export default function History() {
                             <h4 className="text-2xl font-bold text-white">Platform-Optimized Content</h4>
                           </div>
                           
-                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            {Object.entries(item.platform_content).map(([platform, content]) => {
-                              const platformConfig = getPlatformConfig(platform);
-                              const isCopied = copiedPlatform === platform;
-                              
-                              return (
-                                <div key={platform} className="group relative">
-                                  <div className={`absolute -inset-1 bg-gradient-to-r ${platformConfig.gradient} rounded-xl blur opacity-25 group-hover:opacity-50 transition duration-300`}></div>
-                                  <div className="relative bg-slate-700/30 border border-slate-600/50 rounded-lg p-6">
-                                    <div className="flex items-center justify-between mb-4">
-                                      <div className="flex items-center gap-3">
-                                        <div className={`w-10 h-10 bg-gradient-to-r ${platformConfig.gradient} rounded-xl flex items-center justify-center`}>
-                                          <span className="text-lg">{platformConfig.icon}</span>
+                          {item.platforms_generated && item.platforms_generated.length > 0 ? (
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                              {item.platforms_generated.map((platform) => {
+                                const platformConfig = getPlatformConfig(platform);
+                                const content = item.platform_content?.[platform] || 'Content not available';
+                                const hashtags = item.hashtags?.[platform] || [];
+                                const isCopied = copiedPlatform === platform;
+                                
+                                return (
+                                  <div key={platform} className="group relative">
+                                    <div className={`absolute -inset-1 bg-gradient-to-r ${platformConfig.gradient} rounded-xl blur opacity-25 group-hover:opacity-50 transition duration-300`}></div>
+                                    <div className="relative bg-slate-700/30 border border-slate-600/50 rounded-lg p-6">
+                                      <div className="flex items-center justify-between mb-4">
+                                        <div className="flex items-center gap-3">
+                                          <div className={`w-10 h-10 bg-gradient-to-r ${platformConfig.gradient} rounded-xl flex items-center justify-center`}>
+                                            <span className="text-lg">{platformConfig.icon}</span>
+                                          </div>
+                                          <span className="text-white font-semibold text-lg">{platformConfig.name}</span>
                                         </div>
-                                        <span className="text-white font-semibold text-lg">{platformConfig.name}</span>
+                                        <button
+                                          onClick={() => copyToClipboard(content, platform)}
+                                          className={`group relative transition-all duration-300 ${
+                                            isCopied ? 'scale-110' : 'hover:scale-105'
+                                          }`}
+                                        >
+                                          <div className={`absolute -inset-1 bg-gradient-to-r ${platformConfig.gradient} rounded-lg blur opacity-75 group-hover:opacity-100 transition duration-300`}></div>
+                                          <div className={`relative bg-gradient-to-r ${platformConfig.gradient} text-white font-semibold px-4 py-2 rounded-lg text-sm`}>
+                                            {isCopied ? '✅ Copied!' : '📋 Copy'}
+                                          </div>
+                                        </button>
                                       </div>
-                                      <button
-                                        onClick={() => copyToClipboard(content, platform)}
-                                        className={`group relative transition-all duration-300 ${
-                                          isCopied ? 'scale-110' : 'hover:scale-105'
-                                        }`}
-                                      >
-                                        <div className={`absolute -inset-1 bg-gradient-to-r ${platformConfig.gradient} rounded-lg blur opacity-75 group-hover:opacity-100 transition duration-300`}></div>
-                                        <div className={`relative bg-gradient-to-r ${platformConfig.gradient} text-white font-semibold px-4 py-2 rounded-lg text-sm`}>
-                                          {isCopied ? '✅ Copied!' : '📋 Copy'}
+                                      
+                                      <div className="bg-slate-800/50 rounded-lg p-4 mb-4">
+                                        <p className="text-slate-200 leading-relaxed text-sm whitespace-pre-wrap">
+                                          {content}
+                                        </p>
+                                      </div>
+                                      
+                                      {hashtags.length > 0 && (
+                                        <div className="flex flex-wrap gap-2">
+                                          {hashtags.map((tag, tagIndex) => (
+                                            <div key={tagIndex} className="group relative">
+                                              <div className={`absolute -inset-0.5 bg-gradient-to-r ${platformConfig.gradient} rounded-full opacity-50`}></div>
+                                              <span className="relative bg-slate-800/80 text-white font-medium text-xs px-3 py-1.5 rounded-full border border-slate-600/50 hover:bg-slate-700/80 transition-all duration-200">
+                                                {tag}
+                                              </span>
+                                            </div>
+                                          ))}
                                         </div>
-                                      </button>
-                                    </div>
-                                    
-                                    <div className="bg-slate-800/50 rounded-lg p-4 mb-4">
-                                      <p className="text-slate-200 leading-relaxed text-sm whitespace-pre-wrap">
-                                        {content}
-                                      </p>
-                                    </div>
-                                    
-                                    <div className="flex flex-wrap gap-2">
-                                      {item.hashtags[platform as keyof typeof item.hashtags]?.map((tag, tagIndex) => (
-                                        <div key={tagIndex} className="group relative">
-                                          <div className={`absolute -inset-0.5 bg-gradient-to-r ${platformConfig.gradient} rounded-full opacity-50`}></div>
-                                          <span className="relative bg-slate-800/80 text-white font-medium text-xs px-3 py-1.5 rounded-full border border-slate-600/50 hover:bg-slate-700/80 transition-all duration-200">
-                                            {tag}
-                                          </span>
-                                        </div>
-                                      ))}
+                                      )}
                                     </div>
                                   </div>
-                                </div>
-                              );
-                            })}
-                          </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div className="text-center py-8">
+                              <p className="text-slate-400">No platform content available</p>
+                            </div>
+                          )}
                         </div>
                       )}
 
