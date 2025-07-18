@@ -70,6 +70,7 @@ export default function PricingPage() {
     { key: 'basic', ...SUBSCRIPTION_TIERS.basic, popular: false },
     { key: 'pro', ...SUBSCRIPTION_TIERS.pro, popular: true },
     { key: 'business', ...SUBSCRIPTION_TIERS.business, popular: false },
+    { key: 'enterprise', ...SUBSCRIPTION_TIERS.enterprise, popular: false },
   ];
 
   return (
@@ -94,11 +95,11 @@ export default function PricingPage() {
         </div>
 
         {/* Pricing Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-8 max-w-full mx-auto">
           {tiers.map((tier) => (
             <div
               key={tier.key}
-              className={`relative backdrop-blur-xl bg-white/10 border border-white/20 rounded-3xl p-8 transition-all duration-300 hover:scale-105 hover:bg-white/20 ${
+              className={`relative backdrop-blur-xl bg-white/10 border border-white/20 rounded-3xl p-8 transition-all duration-300 hover:scale-105 hover:bg-white/20 flex flex-col ${
                 tier.popular ? 'ring-2 ring-cyan-400 shadow-2xl shadow-cyan-400/20' : ''
               }`}
             >
@@ -117,8 +118,8 @@ export default function PricingPage() {
                   {tier.price > 0 && <span className="text-lg text-slate-300">/month</span>}
                 </div>
                 {tier.key === 'trial' && (
-  <p className="text-sm text-cyan-400">7 day trial</p>
-)}
+                  <p className="text-sm text-cyan-400">7 day trial</p>
+                )}
               </div>
 
               {/* Platform Access */}
@@ -137,8 +138,8 @@ export default function PricingPage() {
                 </div>
               </div>
 
-              {/* Features */}
-              <div className="mb-8">
+              {/* Features - with flex-grow to push button down */}
+              <div className="mb-8 flex-grow">
                 <h4 className="text-sm font-semibold text-cyan-400 mb-3">FEATURES</h4>
                 <ul className="space-y-2">
                   {tier.features.map((feature, index) => (
@@ -150,34 +151,40 @@ export default function PricingPage() {
                 </ul>
               </div>
 
-              {/* CTA Button */}
-              <button
-                onClick={() => {
-                  if (tier.key === 'trial') {
-                    if (!user) {
-                      router.push('/auth');
-                    } else {
-                      router.push('/dashboard');
+              {/* CTA Button - Now at bottom with mt-auto */}
+              <div className="mt-auto">
+                <button
+                  onClick={() => {
+                    if (tier.key === 'trial') {
+                      if (!user) {
+                        router.push('/auth');
+                      } else {
+                        router.push('/dashboard');
+                      }
+                    } else if (tier.priceId) {
+                      handleSubscribe(tier.key, tier.priceId);
                     }
-                  } else if (tier.priceId) {
-                    handleSubscribe(tier.key, tier.priceId);
-                  }
-                }}
-                disabled={loading === tier.key}
-                className={`w-full py-3 px-6 rounded-xl font-semibold transition-all duration-200 ${
-                  tier.popular
-                    ? 'bg-gradient-to-r from-cyan-400 to-purple-400 text-white hover:shadow-lg hover:shadow-cyan-400/25'
-                    : 'bg-white/10 text-white border border-white/20 hover:bg-white/20'
-                } ${loading === tier.key ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                {loading === tier.key ? (
-                  'Processing...'
-                ) : tier.key === 'trial' ? (
-                  user ? 'Start Free Trial' : 'Sign Up Free'
-                ) : (
-                  'Get Started'
-                )}
-              </button>
+                  }}
+                  disabled={loading === tier.key}
+                  className={`w-full py-3 px-6 rounded-xl font-semibold transition-all duration-200 ${
+                    tier.popular
+                      ? 'bg-gradient-to-r from-cyan-400 to-purple-400 text-white hover:shadow-lg hover:shadow-cyan-400/25'
+                      : tier.key === 'enterprise'
+                      ? 'bg-gradient-to-r from-yellow-400 to-orange-400 text-white hover:shadow-lg hover:shadow-yellow-400/25'
+                      : 'bg-white/10 text-white border border-white/20 hover:bg-white/20'
+                  } ${loading === tier.key ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  {loading === tier.key ? (
+                    'Processing...'
+                  ) : tier.key === 'trial' ? (
+                    user ? 'Start Free Trial' : 'Sign Up Free'
+                  ) : tier.key === 'enterprise' ? (
+                    'Contact Sales'
+                  ) : (
+                    'Get Started'
+                  )}
+                </button>
+              </div>
             </div>
           ))}
         </div>
