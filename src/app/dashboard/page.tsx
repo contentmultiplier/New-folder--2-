@@ -4,6 +4,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { createClient } from '@/lib/supabase';
 
 interface ContentItem {
   id: string;
@@ -35,39 +36,64 @@ export default function Dashboard() {
     }
   }, [user, loading, router]);
 
-  // Mock data for now - we'll connect to real data later
-  useEffect(() => {
-    if (user) {
-      // Simulate recent content
-      setRecentContent([
-        {
-          id: '1',
-          original_content: 'How to build a successful SaaS product in 2024: A comprehensive guide covering market research, MVP development, and scaling strategies for modern entrepreneurs...',
-          content_type: 'Blog Post',
-          created_at: '2024-07-15T10:30:00Z'
-        },
-        {
-          id: '2',
-          original_content: 'Top 10 productivity tips for content creators: Time management, automation tools, and workflow optimization techniques that save hours every day...',
-          content_type: 'Video Script',
-          created_at: '2024-07-14T15:20:00Z'
-        },
-        {
-          id: '3',
-          original_content: 'The future of AI in content creation: Exploring how artificial intelligence is transforming the creative process and what it means for creators...',
-          content_type: 'Podcast',
-          created_at: '2024-07-13T09:15:00Z'
-        }
-      ]);
+  // Fetch real data from Supabase
+useEffect(() => {
+  const fetchDashboardData = async () => {
+    if (!user) return;
 
-      // Simulate usage stats
+    try {
+      const supabase = createClient();
+
+      // Fetch user subscription data
+      const subscriptionResponse = await fetch(`/api/user-subscription?userId=${user.id}`);
+      const subscriptionData = await subscriptionResponse.json();
+
+      if (subscriptionResponse.ok) {
+        const tierLimits = {
+          trial: { jobs: 3, platforms: ['linkedin', 'twitter'] },
+          basic: { jobs: 20, platforms: ['linkedin', 'twitter', 'facebook', 'instagram'] },
+          pro: { jobs: 100, platforms: ['linkedin', 'twitter', 'facebook', 'instagram', 'youtube'] },
+          business: { jobs: 500, platforms: ['linkedin', 'twitter', 'facebook', 'instagram', 'youtube', 'tiktok'] },
+          enterprise: { jobs: 999999, platforms: ['linkedin', 'twitter', 'facebook', 'instagram', 'youtube', 'tiktok'] },
+        };
+
+        const userTier = subscriptionData.tier || 'trial';
+        const limits = tierLimits[userTier as keyof typeof tierLimits] || tierLimits.trial;
+
+        setUsageStats({
+          used: subscriptionData.jobs_used_this_month || 0,
+          limit: limits.jobs,
+          tier: userTier === 'trial' ? 'Free Trial' : userTier.charAt(0).toUpperCase() + userTier.slice(1)
+        });
+      }
+
+      // Fetch recent content
+      const { data: contentData, error: contentError } = await supabase
+        .from('content')
+        .select('id, original_content, content_type, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(3);
+
+      if (contentError) {
+        console.error('Error fetching content:', contentError);
+      } else {
+        setRecentContent(contentData || []);
+      }
+
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+      // Fallback to default values
       setUsageStats({
-        used: 2,
+        used: 0,
         limit: 3,
         tier: 'Free Trial'
       });
     }
-  }, [user]);
+  };
+
+  fetchDashboardData();
+}, [user]);
 
   if (loading) {
     return (
@@ -266,7 +292,7 @@ export default function Dashboard() {
                                 'from-pink-400 to-red-400'
                               }`}></div>
                               <span className="text-blue-400 font-semibold">
-                                {item.content_type}
+                                {item.content_type?.charAt(0).toUpperCase() + item.content_type?.slice(1).replace('_', ' ') || 'Content'}
                               </span>
                             </div>
                             <span className="text-slate-400 text-sm">
@@ -376,7 +402,7 @@ export default function Dashboard() {
             {[
               { label: "Avg Processing Time", value: "45s", gradient: "from-blue-400 to-purple-400" },
               { label: "Platforms Supported", value: "5", gradient: "from-purple-400 to-pink-400" },
-              { label: "Content Generated", value: `${usageStats.used * 5}`, gradient: "from-pink-400 to-red-400" },
+              { label: "Content Generated", value: `${recentContent.length}`, gradient: "from-pink-400 to-red-400" },
               { label: "Success Rate", value: "99%", gradient: "from-emerald-400 to-blue-400" }
             ].map((metric, index) => (
               <div key={index} className="text-center">
