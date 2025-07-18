@@ -83,6 +83,16 @@ export default function Navigation() {
                   Dashboard
                 </Link>
                 <Link
+  href="/pricing"
+  className={`transition-colors duration-200 ${
+    pathname === '/pricing' 
+      ? 'text-white font-semibold' 
+      : 'text-white/80 hover:text-white'
+  }`}
+>
+  Pricing
+</Link>
+                <Link
                   href="/create-content"
                   className={`transition-colors duration-200 ${
                     pathname === '/create-content' 
@@ -229,6 +239,17 @@ export default function Navigation() {
                   >
                     Dashboard
                   </Link>
+                  <Link
+  href="/pricing"
+  className={`block px-4 py-2 transition-colors duration-200 ${
+    pathname === '/pricing' 
+      ? 'text-white bg-white/10' 
+      : 'text-white/80 hover:text-white hover:bg-white/10'
+  }`}
+  onClick={() => setIsMenuOpen(false)}
+>
+  Pricing
+</Link>
                   <Link
                     href="/create-content"
                     className={`block px-4 py-2 transition-colors duration-200 ${

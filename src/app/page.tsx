@@ -36,19 +36,19 @@ export default function Home() {
             </p>
 
             {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-6 justify-center mb-16">
-              <a href="/auth" className="group relative">
-                <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl blur opacity-75 group-hover:opacity-100 transition duration-300"></div>
-                <div className="relative bg-gradient-to-r from-blue-500 to-purple-500 text-white font-bold text-lg px-10 py-4 rounded-xl hover:scale-105 transition duration-300">
-                  Start Your Free Trial
-                  <span className="ml-2">→</span>
-                </div>
-              </a>
-              <button className="group bg-white/10 backdrop-blur-sm border border-white/20 text-white font-semibold text-lg px-10 py-4 rounded-xl hover:bg-white/20 transition duration-300">
-                <span className="mr-2">▶</span>
-                Watch 2-Min Demo
-              </button>
-            </div>
+<div className="flex flex-col sm:flex-row gap-6 justify-center mb-16">
+  <a href="/auth" className="group relative">
+    <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl blur opacity-75 group-hover:opacity-100 transition duration-300"></div>
+    <div className="relative bg-gradient-to-r from-blue-500 to-purple-500 text-white font-bold text-lg px-10 py-4 rounded-xl hover:scale-105 transition duration-300">
+      Start Your Free Trial
+      <span className="ml-2">→</span>
+    </div>
+  </a>
+  <a href="/pricing" className="group bg-white/10 backdrop-blur-sm border border-white/20 text-white font-semibold text-lg px-10 py-4 rounded-xl hover:bg-white/20 transition duration-300">
+    <span className="mr-2">💰</span>
+    View Pricing
+  </a>
+</div>
 
             {/* Social Proof */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-8 text-slate-400">

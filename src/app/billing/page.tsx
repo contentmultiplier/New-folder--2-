@@ -4,11 +4,26 @@ import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { SUBSCRIPTION_TIERS } from '@/lib/stripe';
+
+interface UserSubscription {
+  tier: string | null;
+  status: string | null;
+  current_period_end: string | null;
+  jobs_used_this_month: number;
+}
 
 export default function BillingPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('usage');
+  const [subscription, setSubscription] = useState<UserSubscription>({
+    tier: null,
+    status: null,
+    current_period_end: null,
+    jobs_used_this_month: 0
+  });
+  const [loadingSubscription, setLoadingSubscription] = useState(true);
 
   // Redirect to auth if not logged in
   useEffect(() => {
@@ -17,7 +32,78 @@ export default function BillingPage() {
     }
   }, [user, loading, router]);
 
-  if (loading) {
+  // Fetch user subscription data
+  useEffect(() => {
+    if (user) {
+      fetchSubscriptionData();
+    }
+  }, [user]);
+
+  const fetchSubscriptionData = async () => {
+  if (!user) return;
+  
+  try {
+    const response = await fetch(`/api/user-subscription?userId=${user.id}`);
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch subscription data');
+    }
+    
+    const data = await response.json();
+    
+    setSubscription({
+      tier: data.tier,
+      status: data.status,
+      current_period_end: data.current_period_end,
+      jobs_used_this_month: data.jobs_used_this_month
+    });
+  } catch (error) {
+    console.error('Error fetching subscription:', error);
+    // Fallback to trial data if API fails
+    setSubscription({
+      tier: 'trial',
+      status: 'active',
+      current_period_end: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      jobs_used_this_month: 0
+    });
+  } finally {
+    setLoadingSubscription(false);
+  }
+};
+
+  const handleUpgrade = async (tier: string, priceId: string) => {
+    if (!user) return;
+
+    try {
+      const response = await fetch('/api/create-subscription', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          priceId,
+          userId: user.id,
+          tier,
+        }),
+      });
+
+      const { sessionId } = await response.json();
+      
+      // Redirect to Stripe Checkout
+      const stripe = await import('@stripe/stripe-js').then(mod => 
+        mod.loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
+      );
+      
+      if (stripe) {
+        await stripe.redirectToCheckout({ sessionId });
+      }
+    } catch (error) {
+      console.error('Subscription error:', error);
+      alert('Failed to start subscription. Please try again.');
+    }
+  };
+
+  if (loading || loadingSubscription) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 relative overflow-hidden">
         {/* Animated Background */}
@@ -39,6 +125,18 @@ export default function BillingPage() {
   if (!user) {
     return null;
   }
+
+  // Get current tier info
+  const currentTierInfo = subscription.tier && subscription.tier in SUBSCRIPTION_TIERS 
+  ? SUBSCRIPTION_TIERS[subscription.tier as keyof typeof SUBSCRIPTION_TIERS] 
+  : SUBSCRIPTION_TIERS.trial;
+  const jobsRemaining = Math.max(0, currentTierInfo.jobLimit - subscription.jobs_used_this_month);
+  const usagePercentage = currentTierInfo.jobLimit > 0 ? (subscription.jobs_used_this_month / currentTierInfo.jobLimit) * 100 : 0;
+
+  // Calculate days remaining for trial
+  const daysRemaining = subscription.current_period_end 
+    ? Math.max(0, Math.ceil((new Date(subscription.current_period_end).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+    : 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
@@ -108,21 +206,29 @@ export default function BillingPage() {
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-semibold text-white">Current Plan</h2>
                   <div className="px-3 py-1 bg-gradient-to-r from-emerald-500/20 to-blue-500/20 border border-emerald-500/30 rounded-full">
-                    <span className="text-emerald-300 text-sm font-medium">Free Trial</span>
+                    <span className="text-emerald-300 text-sm font-medium">
+                      {currentTierInfo.name}
+                    </span>
                   </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-white mb-1">3</div>
+                    <div className="text-2xl font-bold text-white mb-1">{jobsRemaining}</div>
                     <div className="text-slate-300 text-sm">Jobs Remaining</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-white mb-1">7</div>
-                    <div className="text-slate-300 text-sm">Days Left</div>
+                    <div className="text-2xl font-bold text-white mb-1">
+                      {subscription.tier === 'trial' ? daysRemaining : '∞'}
+                    </div>
+                    <div className="text-slate-300 text-sm">
+                      {subscription.tier === 'trial' ? 'Days Left' : 'Active'}
+                    </div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-white mb-1">$0</div>
-                    <div className="text-slate-300 text-sm">Current Cost</div>
+                    <div className="text-2xl font-bold text-white mb-1">
+                      ${currentTierInfo.price}
+                    </div>
+                    <div className="text-slate-300 text-sm">Monthly Cost</div>
                   </div>
                 </div>
               </div>
@@ -133,27 +239,48 @@ export default function BillingPage() {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <span className="text-slate-300">Content Jobs Used</span>
-                    <span className="text-white font-medium">0 / 3</span>
+                    <span className="text-white font-medium">
+                      {subscription.jobs_used_this_month} / {currentTierInfo.jobLimit === -1 ? '∞' : currentTierInfo.jobLimit}
+                    </span>
                   </div>
                   <div className="w-full bg-slate-700/50 rounded-full h-2">
-                    <div className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full" style={{ width: '0%' }}></div>
+                    <div 
+                      className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300" 
+                      style={{ width: `${Math.min(100, usagePercentage)}%` }}
+                    ></div>
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4">
-                    <div className="text-center">
-                      <div className="text-lg font-semibold text-white">0</div>
-                      <div className="text-slate-300 text-sm">LinkedIn Posts</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-lg font-semibold text-white">0</div>
-                      <div className="text-slate-300 text-sm">Twitter Threads</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-lg font-semibold text-white">0</div>
-                      <div className="text-slate-300 text-sm">Instagram Posts</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-lg font-semibold text-white">0</div>
-                      <div className="text-slate-300 text-sm">Blog Articles</div>
+
+                  {/* Platform Access */}
+                  <div className="pt-4">
+                    <h3 className="text-white font-medium mb-3">Platform Access</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                      {['linkedin', 'twitter', 'facebook', 'instagram', 'youtube'].map((platform) => {
+                        const hasAccess = currentTierInfo.platformAccess.includes(platform);
+                        return (
+                          <div 
+                            key={platform}
+                            className={`text-center p-3 rounded-lg border ${
+                              hasAccess 
+                                ? 'border-green-500/30 bg-green-500/10' 
+                                : 'border-slate-600/30 bg-slate-600/10'
+                            }`}
+                          >
+                            <div className="text-lg mb-1">
+                              {platform === 'linkedin' && '💼'}
+                              {platform === 'twitter' && '🐦'}
+                              {platform === 'facebook' && '📘'}
+                              {platform === 'instagram' && '📸'}
+                              {platform === 'youtube' && '📺'}
+                            </div>
+                            <div className={`text-xs ${hasAccess ? 'text-green-400' : 'text-slate-400'}`}>
+                              {platform.charAt(0).toUpperCase() + platform.slice(1)}
+                            </div>
+                            {!hasAccess && (
+                              <div className="text-xs text-slate-500 mt-1">Pro+</div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
@@ -161,63 +288,52 @@ export default function BillingPage() {
 
               {/* Available Plans */}
               <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
-                <h2 className="text-xl font-semibold text-white mb-6">Upgrade Your Plan</h2>
+                <h2 className="text-xl font-semibold text-white mb-6">
+                  {subscription.tier === 'trial' ? 'Upgrade Your Plan' : 'Change Plan'}
+                </h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {/* Basic Plan */}
-                  <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6 hover:border-blue-500/50 transition-all duration-300">
-                    <div className="text-center">
-                      <h3 className="text-lg font-semibold text-white mb-2">Basic</h3>
-                      <div className="text-3xl font-bold text-white mb-1">$29</div>
-                      <div className="text-slate-300 text-sm mb-4">per month</div>
-                      <div className="space-y-2 text-sm text-slate-300 mb-6">
-                        <div>20 content jobs/month</div>
-                        <div>All platforms</div>
-                        <div>Basic support</div>
+                  {Object.entries(SUBSCRIPTION_TIERS)
+                    .filter(([key]) => key !== 'trial' && key !== 'enterprise')
+                    .map(([key, tier]) => (
+                    <div key={key} className={`bg-slate-800/50 backdrop-blur-sm border rounded-xl p-6 transition-all duration-300 ${
+                      key === 'pro' ? 'border-purple-500/50' : 'border-slate-700/50 hover:border-blue-500/50'
+                    }`}>
+                      {key === 'pro' && (
+                        <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                          <span className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs font-semibold px-3 py-1 rounded-full">
+                            Most Popular
+                          </span>
+                        </div>
+                      )}
+                      <div className="text-center">
+                        <h3 className="text-lg font-semibold text-white mb-2">
+                          {tier.name.replace('ContentMultiplier ', '')}
+                        </h3>
+                        <div className="text-3xl font-bold text-white mb-1">${tier.price}</div>
+                        <div className="text-slate-300 text-sm mb-4">per month</div>
+                        <div className="space-y-2 text-sm text-slate-300 mb-6">
+                          {tier.features.slice(0, 3).map((feature, index) => (
+                            <div key={index}>{feature}</div>
+                          ))}
+                        </div>
+                        <button 
+  onClick={() => tier.priceId && handleUpgrade(key, tier.priceId)}
+  disabled={!tier.priceId || subscription.tier === key}
+  className={`w-full font-semibold py-2 px-4 rounded-lg transition duration-300 ${
+    !tier.priceId || subscription.tier === key
+      ? 'bg-slate-600 text-slate-400 cursor-not-allowed'
+      : key === 'pro' 
+      ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:scale-105'
+      : key === 'basic'
+      ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:scale-105'
+      : 'bg-gradient-to-r from-emerald-500 to-blue-500 text-white hover:scale-105'
+  }`}
+>
+  {subscription.tier === key ? 'Current Plan' : 'Upgrade'}
+</button>
                       </div>
-                      <button className="w-full bg-gradient-to-r from-blue-500 to-purple-500 text-white font-semibold py-2 px-4 rounded-lg hover:scale-105 transition duration-300">
-                        Coming Soon
-                      </button>
                     </div>
-                  </div>
-
-                  {/* Pro Plan */}
-                  <div className="bg-slate-800/50 backdrop-blur-sm border border-purple-500/50 rounded-xl p-6 relative">
-                    <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                      <span className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs font-semibold px-3 py-1 rounded-full">
-                        Most Popular
-                      </span>
-                    </div>
-                    <div className="text-center">
-                      <h3 className="text-lg font-semibold text-white mb-2">Pro</h3>
-                      <div className="text-3xl font-bold text-white mb-1">$79</div>
-                      <div className="text-slate-300 text-sm mb-4">per month</div>
-                      <div className="space-y-2 text-sm text-slate-300 mb-6">
-                        <div>100 content jobs/month</div>
-                        <div>Advanced features</div>
-                        <div>Priority support</div>
-                      </div>
-                      <button className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold py-2 px-4 rounded-lg hover:scale-105 transition duration-300">
-                        Coming Soon
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Business Plan */}
-                  <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6 hover:border-emerald-500/50 transition-all duration-300">
-                    <div className="text-center">
-                      <h3 className="text-lg font-semibold text-white mb-2">Business</h3>
-                      <div className="text-3xl font-bold text-white mb-1">$199</div>
-                      <div className="text-slate-300 text-sm mb-4">per month</div>
-                      <div className="space-y-2 text-sm text-slate-300 mb-6">
-                        <div>500 content jobs/month</div>
-                        <div>Team features</div>
-                        <div>Dedicated support</div>
-                      </div>
-                      <button className="w-full bg-gradient-to-r from-emerald-500 to-blue-500 text-white font-semibold py-2 px-4 rounded-lg hover:scale-105 transition duration-300">
-                        Coming Soon
-                      </button>
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -231,7 +347,10 @@ export default function BillingPage() {
                 <div className="text-6xl mb-4">📄</div>
                 <h3 className="text-lg font-medium text-white mb-2">No Billing History</h3>
                 <p className="text-slate-300 mb-6">
-                  You're currently on the free trial. Your billing history will appear here once you upgrade to a paid plan.
+                  {subscription.tier === 'trial' 
+                    ? "You're currently on the free trial. Your billing history will appear here once you upgrade to a paid plan."
+                    : "No billing history available yet."
+                  }
                 </p>
                 <button
                   onClick={() => setActiveTab('usage')}
@@ -275,10 +394,10 @@ export default function BillingPage() {
               </div>
             </Link>
             <Link 
-              href="/settings"
+              href="/pricing"
               className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 text-white font-semibold text-center py-3 px-6 rounded-lg hover:bg-slate-700/50 hover:scale-105 transition duration-300"
             >
-              Account Settings
+              View All Plans
             </Link>
           </div>
 
