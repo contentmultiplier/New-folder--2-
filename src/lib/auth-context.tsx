@@ -2,20 +2,23 @@
 
 import { createContext, useContext, useEffect, useState } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
-import type { User } from '@supabase/supabase-js';
+import type { User, Session } from '@supabase/supabase-js';
 
 interface AuthContextType {
   user: User | null;
+  session: Session | null;
   loading: boolean;
   signIn: (credentials: { email: string; password: string }) => Promise<{ error: any }>;
   signUp: (credentials: { email: string; password: string; options?: any }) => Promise<{ error: any }>;
   logout: () => Promise<void>;
+  getAccessToken: () => Promise<string | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   
   const supabase = createBrowserClient(
@@ -23,11 +26,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
+  const getAccessToken = async (): Promise<string | null> => {
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) {
+        console.error('Error getting session for token:', error);
+        return null;
+      }
+      return session?.access_token || null;
+    } catch (error) {
+      console.error('Error in getAccessToken:', error);
+      return null;
+    }
+  };
+
   const signIn = async (credentials: { email: string; password: string }) => {
     try {
       const { data, error } = await supabase.auth.signInWithPassword(credentials);
-      if (!error && data.user) {
+      if (!error && data.user && data.session) {
         setUser(data.user);
+        setSession(data.session);
       }
       return { error };
     } catch (error) {
@@ -41,6 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (!error && data.user) {
         setUser(data.user);
+        setSession(data.session);
         
         // Create profile in database
         try {
@@ -78,32 +97,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await supabase.auth.signOut();
       setUser(null);
+      setSession(null);
     } catch (error) {
       console.error('Logout error:', error);
     }
   };
 
   useEffect(() => {
-    const getUser = async () => {
+    const getInitialSession = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        setUser(user);
+        // Get both user and session
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Get session error:', error);
+        }
+        
+        setUser(session?.user || null);
+        setSession(session);
         setLoading(false);
       } catch (error) {
-        console.error('Get user error:', error);
+        console.error('Get initial session error:', error);
         setLoading(false);
       }
     };
 
-    getUser();
+    getInitialSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event: string, session: any) => {
-        if (session?.user) {
-          setUser(session.user);
-        } else {
-          setUser(null);
-        }
+      async (event: string, session: Session | null) => {
+        console.log('Auth state changed:', event, session?.user?.id);
+        setUser(session?.user || null);
+        setSession(session);
         setLoading(false);
       }
     );
@@ -112,7 +137,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [supabase.auth]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signUp, logout }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      session, 
+      loading, 
+      signIn, 
+      signUp, 
+      logout, 
+      getAccessToken 
+    }}>
       {children}
     </AuthContext.Provider>
   );

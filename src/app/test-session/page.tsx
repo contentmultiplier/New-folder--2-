@@ -5,27 +5,23 @@ import { useAuth } from '@/lib/auth-context';
 import { createClient } from '@supabase/supabase-js';
 
 export default function TestSessionPage() {
-  const { user } = useAuth();
+  const { user, session, getAccessToken } = useAuth();
   const [sessionInfo, setSessionInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const checkSession = async () => {
       try {
-        const supabase = createClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-        );
-
-        const { data: { session }, error } = await supabase.auth.getSession();
+        const accessToken = await getAccessToken();
         
         setSessionInfo({
           hasSession: !!session,
-          sessionError: error?.message,
-          accessToken: session?.access_token ? 'Present' : 'Missing',
+          accessToken: accessToken ? 'Present' : 'Missing',
+          accessTokenPreview: accessToken ? `${accessToken.substring(0, 20)}...` : 'Missing',
           userId: session?.user?.id,
           userEmail: session?.user?.email,
           authContextUser: user?.id,
+          sessionFromContext: !!session,
         });
       } catch (error: any) {
         setSessionInfo({
@@ -36,7 +32,7 @@ export default function TestSessionPage() {
     };
 
     checkSession();
-  }, [user]);
+  }, [user, session, getAccessToken]);
 
   if (loading) {
     return (
