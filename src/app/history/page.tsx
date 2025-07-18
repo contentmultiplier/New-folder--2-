@@ -383,12 +383,12 @@ export default function History() {
                                     
                                     <div className="flex flex-wrap gap-2">
                                       {item.hashtags[platform as keyof typeof item.hashtags]?.map((tag, tagIndex) => (
-                                        <span
-                                          key={tagIndex}
-                                          className={`bg-gradient-to-r ${platformConfig.gradient} bg-clip-text text-transparent font-semibold text-xs px-3 py-1 bg-slate-600/30 rounded-full border border-slate-600/50`}
-                                        >
-                                          {tag}
-                                        </span>
+                                        <div key={tagIndex} className="group relative">
+                                          <div className={`absolute -inset-0.5 bg-gradient-to-r ${platformConfig.gradient} rounded-full opacity-50`}></div>
+                                          <span className="relative bg-slate-800/80 text-white font-medium text-xs px-3 py-1.5 rounded-full border border-slate-600/50 hover:bg-slate-700/80 transition-all duration-200">
+                                            {tag}
+                                          </span>
+                                        </div>
                                       ))}
                                     </div>
                                   </div>
