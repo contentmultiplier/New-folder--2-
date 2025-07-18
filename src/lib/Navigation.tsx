@@ -1,14 +1,22 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 
 export default function Navigation() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const { user, loading, logout } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+
+  // Handle client-side mounting
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -20,7 +28,31 @@ export default function Navigation() {
   };
 
   // Don't render navigation on auth page
-  if (typeof window !== 'undefined' && window.location.pathname === '/auth') {
+  if (!mounted) {
+    return (
+      <nav className="bg-black/20 backdrop-blur-md border-b border-white/10 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            {/* Logo */}
+            <Link href="/" className="flex items-center space-x-2">
+              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-sm">CM</span>
+              </div>
+              <span className="text-white font-bold text-xl">ContentMux</span>
+            </Link>
+
+            {/* Loading placeholder */}
+            <div className="flex items-center space-x-4">
+              <div className="w-20 h-8 bg-white/10 rounded animate-pulse"></div>
+              <div className="w-24 h-8 bg-white/10 rounded animate-pulse"></div>
+            </div>
+          </div>
+        </div>
+      </nav>
+    );
+  }
+
+  if (pathname === '/auth') {
     return null;
   }
 
@@ -42,25 +74,41 @@ export default function Navigation() {
               <>
                 <Link
                   href="/dashboard"
-                  className="text-white/80 hover:text-white transition-colors duration-200"
+                  className={`transition-colors duration-200 ${
+                    pathname === '/dashboard' 
+                      ? 'text-white font-semibold' 
+                      : 'text-white/80 hover:text-white'
+                  }`}
                 >
                   Dashboard
                 </Link>
                 <Link
                   href="/create-content"
-                  className="text-white/80 hover:text-white transition-colors duration-200"
+                  className={`transition-colors duration-200 ${
+                    pathname === '/create-content' 
+                      ? 'text-white font-semibold' 
+                      : 'text-white/80 hover:text-white'
+                  }`}
                 >
                   Create Content
                 </Link>
                 <Link
                   href="/history"
-                  className="text-white/80 hover:text-white transition-colors duration-200"
+                  className={`transition-colors duration-200 ${
+                    pathname === '/history' 
+                      ? 'text-white font-semibold' 
+                      : 'text-white/80 hover:text-white'
+                  }`}
                 >
                   History
                 </Link>
                 <Link
                   href="/settings"
-                  className="text-white/80 hover:text-white transition-colors duration-200"
+                  className={`transition-colors duration-200 ${
+                    pathname === '/settings' 
+                      ? 'text-white font-semibold' 
+                      : 'text-white/80 hover:text-white'
+                  }`}
                 >
                   Settings
                 </Link>
@@ -133,9 +181,12 @@ export default function Navigation() {
                 </Link>
                 <Link
                   href="/auth"
-                  className="premium-button text-sm"
+                  className="group relative"
                 >
-                  Get Started Free
+                  <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg blur opacity-75 group-hover:opacity-100 transition duration-300"></div>
+                  <div className="relative bg-gradient-to-r from-blue-500 to-purple-500 text-white font-semibold text-sm px-4 py-2 rounded-lg hover:scale-105 transition duration-300">
+                    Get Started Free
+                  </div>
                 </Link>
               </div>
             )}
@@ -175,35 +226,55 @@ export default function Navigation() {
                   </div>
                   <Link
                     href="/dashboard"
-                    className="block px-4 py-2 text-white/80 hover:text-white hover:bg-white/10 transition-colors duration-200"
+                    className={`block px-4 py-2 transition-colors duration-200 ${
+                      pathname === '/dashboard' 
+                        ? 'text-white bg-white/10' 
+                        : 'text-white/80 hover:text-white hover:bg-white/10'
+                    }`}
                     onClick={() => setIsMenuOpen(false)}
                   >
                     Dashboard
                   </Link>
                   <Link
                     href="/create-content"
-                    className="block px-4 py-2 text-white/80 hover:text-white hover:bg-white/10 transition-colors duration-200"
+                    className={`block px-4 py-2 transition-colors duration-200 ${
+                      pathname === '/create-content' 
+                        ? 'text-white bg-white/10' 
+                        : 'text-white/80 hover:text-white hover:bg-white/10'
+                    }`}
                     onClick={() => setIsMenuOpen(false)}
                   >
                     Create Content
                   </Link>
                   <Link
                     href="/history"
-                    className="block px-4 py-2 text-white/80 hover:text-white hover:bg-white/10 transition-colors duration-200"
+                    className={`block px-4 py-2 transition-colors duration-200 ${
+                      pathname === '/history' 
+                        ? 'text-white bg-white/10' 
+                        : 'text-white/80 hover:text-white hover:bg-white/10'
+                    }`}
                     onClick={() => setIsMenuOpen(false)}
                   >
                     History
                   </Link>
                   <Link
                     href="/settings"
-                    className="block px-4 py-2 text-white/80 hover:text-white hover:bg-white/10 transition-colors duration-200"
+                    className={`block px-4 py-2 transition-colors duration-200 ${
+                      pathname === '/settings' 
+                        ? 'text-white bg-white/10' 
+                        : 'text-white/80 hover:text-white hover:bg-white/10'
+                    }`}
                     onClick={() => setIsMenuOpen(false)}
                   >
                     Settings
                   </Link>
                   <Link
                     href="/billing"
-                    className="block px-4 py-2 text-white/80 hover:text-white hover:bg-white/10 transition-colors duration-200"
+                    className={`block px-4 py-2 transition-colors duration-200 ${
+                      pathname === '/billing' 
+                        ? 'text-white bg-white/10' 
+                        : 'text-white/80 hover:text-white hover:bg-white/10'
+                    }`}
                     onClick={() => setIsMenuOpen(false)}
                   >
                     Billing & Usage
