@@ -1,8 +1,8 @@
 // ContentMux Main Processing API Route
-// Handles both text input and file upload processing
+// Handles both text input and file upload processing with platform selection
 
 import { NextRequest, NextResponse } from 'next/server';
-import { processCompleteWorkflow } from '@/lib/api-utils';
+import { processCompleteWorkflow, repurposeContent, generateHashtags } from '@/lib/api-utils';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,7 +12,8 @@ export async function POST(request: NextRequest) {
     if (contentType?.includes('multipart/form-data')) {
       const formData = await request.formData();
       const file = formData.get('file') as File;
-      const generateHashtags = formData.get('generateHashtags') === 'true';
+      const generateHashtagsFlag = formData.get('generateHashtags') === 'true';
+      const platforms = formData.get('platforms') ? JSON.parse(formData.get('platforms') as string) : ['linkedin', 'twitter'];
       
       if (!file) {
         return NextResponse.json(
@@ -35,11 +36,20 @@ export async function POST(request: NextRequest) {
       }
 
       // Process file through complete workflow
-      const result = await processCompleteWorkflow(file, generateHashtags);
+      const result = await processCompleteWorkflow(file, generateHashtagsFlag);
+      
+      // Filter content and hashtags to only selected platforms
+      const filteredContent = filterContentByPlatforms(result.repurposedContent, platforms);
+      const filteredHashtags = generateHashtagsFlag ? filterHashtagsByPlatforms(result.hashtags, platforms) : undefined;
       
       return NextResponse.json({
         success: true,
-        data: result,
+        data: {
+          originalText: result.originalText,
+          repurposedContent: filteredContent,
+          hashtags: filteredHashtags,
+          transcription: result.transcription
+        },
         message: 'File processed successfully'
       });
     }
@@ -50,7 +60,9 @@ export async function POST(request: NextRequest) {
       
       // Accept both 'text' and 'content' for backward compatibility
       const text = body.text || body.content;
-      const generateHashtags = body.generateHashtags !== false; // Default to true
+      const generateHashtagsFlag = body.generateHashtags !== false; // Default to true
+      const platforms = body.platforms || ['linkedin', 'twitter']; // Default platforms
+      const selectedContentType = body.contentType || 'blog_post';
       
       if (!text || typeof text !== 'string') {
         return NextResponse.json(
@@ -66,14 +78,50 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Process text through complete workflow
-      const result = await processCompleteWorkflow(text, generateHashtags);
+      // Validate platforms
+      const validPlatforms = ['twitter', 'linkedin', 'facebook', 'instagram', 'youtube', 'tiktok'];
+      const selectedPlatforms = platforms.filter((p: string) => validPlatforms.includes(p));
       
-      return NextResponse.json({
-        success: true,
-        data: result,
-        message: 'Text processed successfully'
-      });
+      if (selectedPlatforms.length === 0) {
+        return NextResponse.json(
+          { error: 'At least one valid platform must be selected' },
+          { status: 400 }
+        );
+      }
+
+      try {
+        // Generate content for selected platforms only
+        const repurposedContent = await repurposeContent(text);
+        
+        // Filter content to only selected platforms
+        const filteredContent = filterContentByPlatforms(repurposedContent, selectedPlatforms);
+        
+        // Generate hashtags for selected platforms only
+        let hashtags = undefined;
+        if (generateHashtagsFlag) {
+          const allHashtags = await generateHashtags(text, selectedPlatforms);
+          hashtags = filterHashtagsByPlatforms(allHashtags, selectedPlatforms);
+        }
+        
+        return NextResponse.json({
+          success: true,
+          data: {
+            originalText: text,
+            repurposedContent: filteredContent,
+            hashtags: hashtags,
+            contentType: selectedContentType,
+            platforms: selectedPlatforms
+          },
+          message: 'Text processed successfully'
+        });
+        
+      } catch (error: any) {
+        console.error('Content processing error:', error);
+        return NextResponse.json(
+          { error: error.message || 'Failed to process content' },
+          { status: 500 }
+        );
+      }
     }
     
     // Invalid content type
@@ -95,6 +143,30 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+// Helper function to filter content by selected platforms
+function filterContentByPlatforms(content: any, platforms: string[]) {
+  const filtered: any = {};
+  platforms.forEach(platform => {
+    if (content[platform]) {
+      filtered[platform] = content[platform];
+    }
+  });
+  return filtered;
+}
+
+// Helper function to filter hashtags by selected platforms
+function filterHashtagsByPlatforms(hashtags: any, platforms: string[]) {
+  if (!hashtags) return undefined;
+  
+  const filtered: any = {};
+  platforms.forEach(platform => {
+    if (hashtags[platform]) {
+      filtered[platform] = hashtags[platform];
+    }
+  });
+  return filtered;
 }
 
 // Handle OPTIONS for CORS
