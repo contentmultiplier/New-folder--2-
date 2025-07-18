@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { stripe } from '@/lib/stripe';
+import { getStripe } from '@/lib/stripe';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -55,6 +55,7 @@ async function handleCheckoutCompleted(session: any) {
   }
 
   try {
+    const stripe = getStripe();
     const subscription = await stripe.subscriptions.retrieve(session.subscription);
     
     const { error } = await supabase

@@ -1,25 +1,21 @@
 import Stripe from 'stripe';
 
-// Server-side Stripe initialization
-function createStripeInstance() {
-  if (!process.env.STRIPE_SECRET_KEY) {
-    throw new Error('STRIPE_SECRET_KEY is not set');
+// Server-side only: Stripe instance (only import this in API routes)
+let stripeInstance: Stripe | null = null;
+
+export function getStripe() {
+  if (!stripeInstance) {
+    if (!process.env.STRIPE_SECRET_KEY) {
+      throw new Error('STRIPE_SECRET_KEY is not set');
+    }
+    stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      typescript: true,
+    });
   }
-  
-  return new Stripe(process.env.STRIPE_SECRET_KEY, {
-    typescript: true,
-  });
+  return stripeInstance;
 }
 
-// Export stripe instance (only use on server-side)
-export const stripe = createStripeInstance();
-
-// Client-safe Stripe configuration
-export const STRIPE_CONFIG = {
-  publishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!,
-};
-
-// Subscription tier configuration (client-safe)
+// Client-safe configuration (no environment variables)
 export const SUBSCRIPTION_TIERS = {
   trial: {
     name: 'Free Trial',
@@ -100,7 +96,7 @@ export const SUBSCRIPTION_TIERS = {
   },
 };
 
-// Helper function to get user's subscription tier
+// Helper functions (client-safe)
 export function getUserTierLimits(tier: string | null) {
   if (!tier || tier === 'trial') {
     return SUBSCRIPTION_TIERS.trial;
@@ -109,13 +105,11 @@ export function getUserTierLimits(tier: string | null) {
   return SUBSCRIPTION_TIERS[tier as keyof typeof SUBSCRIPTION_TIERS] || SUBSCRIPTION_TIERS.trial;
 }
 
-// Helper function to check if user can access a platform
 export function canAccessPlatform(userTier: string | null, platform: string) {
   const tierLimits = getUserTierLimits(userTier);
   return tierLimits.platformAccess.includes(platform.toLowerCase());
 }
 
-// Helper function to check if user can upload videos
 export function canUploadVideo(userTier: string | null) {
   const tierLimits = getUserTierLimits(userTier);
   return tierLimits.hasVideoUpload;

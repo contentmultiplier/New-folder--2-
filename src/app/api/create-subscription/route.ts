@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { stripe, SUBSCRIPTION_TIERS } from '@/lib/stripe';
+import { getStripe, SUBSCRIPTION_TIERS } from '@/lib/stripe';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -31,6 +31,9 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       );
     }
+
+    // Get Stripe instance
+    const stripe = getStripe();
 
     // Create Stripe customer if doesn't exist
     let customerId = profile.stripe_customer_id;
