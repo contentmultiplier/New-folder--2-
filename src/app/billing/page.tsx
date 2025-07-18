@@ -40,36 +40,36 @@ export default function BillingPage() {
   }, [user]);
 
   const fetchSubscriptionData = async () => {
-  if (!user) return;
-  
-  try {
-    const response = await fetch(`/api/user-subscription?userId=${user.id}`);
+    if (!user) return;
     
-    if (!response.ok) {
-      throw new Error('Failed to fetch subscription data');
+    try {
+      const response = await fetch(`/api/user-subscription?userId=${user.id}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch subscription data');
+      }
+      
+      const data = await response.json();
+      
+      setSubscription({
+        tier: data.tier,
+        status: data.status,
+        current_period_end: data.current_period_end,
+        jobs_used_this_month: data.jobs_used_this_month
+      });
+    } catch (error) {
+      console.error('Error fetching subscription:', error);
+      // Fallback to trial data if API fails
+      setSubscription({
+        tier: 'trial',
+        status: 'active',
+        current_period_end: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        jobs_used_this_month: 0
+      });
+    } finally {
+      setLoadingSubscription(false);
     }
-    
-    const data = await response.json();
-    
-    setSubscription({
-      tier: data.tier,
-      status: data.status,
-      current_period_end: data.current_period_end,
-      jobs_used_this_month: data.jobs_used_this_month
-    });
-  } catch (error) {
-    console.error('Error fetching subscription:', error);
-    // Fallback to trial data if API fails
-    setSubscription({
-      tier: 'trial',
-      status: 'active',
-      current_period_end: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      jobs_used_this_month: 0
-    });
-  } finally {
-    setLoadingSubscription(false);
-  }
-};
+  };
 
   const handleUpgrade = async (tier: string, priceId: string) => {
     if (!user) return;
@@ -128,8 +128,8 @@ export default function BillingPage() {
 
   // Get current tier info
   const currentTierInfo = subscription.tier && subscription.tier in SUBSCRIPTION_TIERS 
-  ? SUBSCRIPTION_TIERS[subscription.tier as keyof typeof SUBSCRIPTION_TIERS] 
-  : SUBSCRIPTION_TIERS.trial;
+    ? SUBSCRIPTION_TIERS[subscription.tier as keyof typeof SUBSCRIPTION_TIERS] 
+    : SUBSCRIPTION_TIERS.trial;
   const jobsRemaining = Math.max(0, currentTierInfo.jobLimit - subscription.jobs_used_this_month);
   const usagePercentage = currentTierInfo.jobLimit > 0 ? (subscription.jobs_used_this_month / currentTierInfo.jobLimit) * 100 : 0;
 
@@ -250,11 +250,11 @@ export default function BillingPage() {
                     ></div>
                   </div>
 
-                  {/* Platform Access */}
+                  {/* Platform Access - Updated to show all 6 platforms */}
                   <div className="pt-4">
                     <h3 className="text-white font-medium mb-3">Platform Access</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                      {['linkedin', 'twitter', 'facebook', 'instagram', 'youtube'].map((platform) => {
+                    <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+                      {['linkedin', 'twitter', 'facebook', 'instagram', 'youtube', 'tiktok'].map((platform) => {
                         const hasAccess = currentTierInfo.platformAccess.includes(platform);
                         return (
                           <div 
@@ -271,12 +271,15 @@ export default function BillingPage() {
                               {platform === 'facebook' && '📘'}
                               {platform === 'instagram' && '📸'}
                               {platform === 'youtube' && '📺'}
+                              {platform === 'tiktok' && '🎵'}
                             </div>
                             <div className={`text-xs ${hasAccess ? 'text-green-400' : 'text-slate-400'}`}>
-                              {platform.charAt(0).toUpperCase() + platform.slice(1)}
+                              {platform === 'tiktok' ? 'TikTok' : platform.charAt(0).toUpperCase() + platform.slice(1)}
                             </div>
                             {!hasAccess && (
-                              <div className="text-xs text-slate-500 mt-1">Pro+</div>
+                              <div className="text-xs text-slate-500 mt-1">
+                                {platform === 'tiktok' ? 'Business+' : platform === 'youtube' ? 'Pro+' : 'Pro+'}
+                              </div>
                             )}
                           </div>
                         );
@@ -286,16 +289,16 @@ export default function BillingPage() {
                 </div>
               </div>
 
-              {/* Available Plans */}
+              {/* Available Plans - Updated to include all tiers */}
               <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
                 <h2 className="text-xl font-semibold text-white mb-6">
                   {subscription.tier === 'trial' ? 'Upgrade Your Plan' : 'Change Plan'}
                 </h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   {Object.entries(SUBSCRIPTION_TIERS)
-                    .filter(([key]) => key !== 'trial' && key !== 'enterprise')
+                    .filter(([key]) => key !== 'trial')
                     .map(([key, tier]) => (
-                    <div key={key} className={`bg-slate-800/50 backdrop-blur-sm border rounded-xl p-6 transition-all duration-300 ${
+                    <div key={key} className={`bg-slate-800/50 backdrop-blur-sm border rounded-xl p-6 transition-all duration-300 flex flex-col ${
                       key === 'pro' ? 'border-purple-500/50' : 'border-slate-700/50 hover:border-blue-500/50'
                     }`}>
                       {key === 'pro' && (
@@ -305,32 +308,42 @@ export default function BillingPage() {
                           </span>
                         </div>
                       )}
-                      <div className="text-center">
+                      <div className="text-center flex-grow">
                         <h3 className="text-lg font-semibold text-white mb-2">
                           {tier.name.replace('ContentMultiplier ', '')}
                         </h3>
                         <div className="text-3xl font-bold text-white mb-1">${tier.price}</div>
                         <div className="text-slate-300 text-sm mb-4">per month</div>
-                        <div className="space-y-2 text-sm text-slate-300 mb-6">
+                        <div className="space-y-2 text-sm text-slate-300 mb-6 flex-grow">
                           {tier.features.slice(0, 3).map((feature, index) => (
                             <div key={index}>{feature}</div>
                           ))}
                         </div>
+                      </div>
+                      <div className="mt-auto">
                         <button 
-  onClick={() => tier.priceId && handleUpgrade(key, tier.priceId)}
-  disabled={!tier.priceId || subscription.tier === key}
-  className={`w-full font-semibold py-2 px-4 rounded-lg transition duration-300 ${
-    !tier.priceId || subscription.tier === key
-      ? 'bg-slate-600 text-slate-400 cursor-not-allowed'
-      : key === 'pro' 
-      ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:scale-105'
-      : key === 'basic'
-      ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:scale-105'
-      : 'bg-gradient-to-r from-emerald-500 to-blue-500 text-white hover:scale-105'
-  }`}
->
-  {subscription.tier === key ? 'Current Plan' : 'Upgrade'}
-</button>
+                          onClick={() => {
+                            if (key === 'enterprise') {
+                              window.open('mailto:sales@contentmux.com?subject=Enterprise Plan Inquiry', '_blank');
+                            } else if (tier.priceId) {
+                              handleUpgrade(key, tier.priceId);
+                            }
+                          }}
+                          disabled={(!tier.priceId && key !== 'enterprise') || subscription.tier === key}
+                          className={`w-full font-semibold py-2 px-4 rounded-lg transition duration-300 ${
+                            subscription.tier === key
+                              ? 'bg-slate-600 text-slate-400 cursor-not-allowed'
+                              : key === 'enterprise'
+                              ? 'bg-gradient-to-r from-yellow-400 to-orange-400 text-white hover:scale-105'
+                              : key === 'pro' 
+                              ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:scale-105'
+                              : key === 'basic'
+                              ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:scale-105'
+                              : 'bg-gradient-to-r from-emerald-500 to-blue-500 text-white hover:scale-105'
+                          }`}
+                        >
+                          {subscription.tier === key ? 'Current Plan' : key === 'enterprise' ? 'Contact Sales' : 'Upgrade'}
+                        </button>
                       </div>
                     </div>
                   ))}
