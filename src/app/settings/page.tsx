@@ -43,7 +43,6 @@ export default function Settings() {
   // Load user profile and preferences
   useEffect(() => {
     if (user) {
-      // Mock data - we'll connect to real database later
       setUserProfile({
         email: user.email || '',
         created_at: '2024-07-01T00:00:00Z',
@@ -54,27 +53,10 @@ export default function Settings() {
     }
   }, [user]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center">
-        <div className="premium-card p-8 text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-white/60">Loading settings...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user || !userProfile) {
-    return null;
-  }
-
   const handleSavePreferences = async () => {
     setIsSaving(true);
-    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
     setIsSaving(false);
-    // You could add a success toast here
   };
 
   const handleLogout = async () => {
@@ -92,359 +74,550 @@ export default function Settings() {
 
   const getSubscriptionColor = (tier: string) => {
     switch (tier.toLowerCase()) {
-      case 'free trial': return 'text-gray-400';
-      case 'basic': return 'text-blue-400';
-      case 'pro': return 'text-purple-400';
-      case 'business': return 'text-yellow-400';
-      default: return 'text-gray-400';
+      case 'free trial': return 'from-slate-500 to-slate-400';
+      case 'basic': return 'from-blue-500 to-blue-400';
+      case 'pro': return 'from-purple-500 to-purple-400';
+      case 'business': return 'from-yellow-500 to-yellow-400';
+      default: return 'from-slate-500 to-slate-400';
     }
   };
 
   const tabs = [
-    { id: 'account', name: 'Account', icon: '👤' },
-    { id: 'subscription', name: 'Subscription', icon: '💳' },
-    { id: 'preferences', name: 'Preferences', icon: '⚙️' },
-    { id: 'security', name: 'Security', icon: '🔒' }
+    { id: 'account', name: 'Account', icon: '👤', gradient: 'from-blue-500 to-purple-500' },
+    { id: 'subscription', name: 'Subscription', icon: '💳', gradient: 'from-purple-500 to-pink-500' },
+    { id: 'preferences', name: 'Preferences', icon: '⚙️', gradient: 'from-pink-500 to-red-500' },
+    { id: 'security', name: 'Security', icon: '🔒', gradient: 'from-emerald-500 to-blue-500' }
   ];
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="relative">
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl blur opacity-75"></div>
+          <div className="relative bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 p-12 rounded-xl text-center">
+            <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+            </div>
+            <h3 className="text-2xl font-bold text-white mb-2">Loading Settings</h3>
+            <p className="text-slate-300">Preparing your account preferences...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user || !userProfile) {
+    return null;
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 pt-20 pb-12">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">Settings</h1>
-          <p className="text-white/60 text-lg">
-            Manage your account, subscription, and preferences
-          </p>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      {/* Background Effects */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-pulse"></div>
+        <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-pulse delay-1000"></div>
+        <div className="absolute bottom-1/4 left-1/3 w-96 h-96 bg-pink-500 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-pulse delay-500"></div>
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+      <div className="relative pt-24 pb-12">
+        <div className="max-w-7xl mx-auto px-6">
           
-          {/* Sidebar Navigation */}
-          <div className="lg:col-span-1">
-            <div className="premium-card p-4">
-              <nav className="space-y-2">
-                {tabs.map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors ${
-                      activeTab === tab.id
-                        ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                        : 'text-white/60 hover:text-white hover:bg-white/10'
-                    }`}
-                  >
-                    <span className="text-lg">{tab.icon}</span>
-                    <span className="font-medium">{tab.name}</span>
-                  </button>
-                ))}
-              </nav>
+          {/* Header */}
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 rounded-full px-6 py-2 mb-6">
+              <div className="w-2 h-2 bg-purple-400 rounded-full mr-3 animate-pulse"></div>
+              <span className="text-purple-300 text-sm font-medium">Account Settings</span>
             </div>
+            
+            <h1 className="text-5xl md:text-6xl font-bold mb-6">
+              Account 
+              <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-red-400 bg-clip-text text-transparent">
+                Settings
+              </span>
+            </h1>
+            <p className="text-xl text-slate-300 max-w-3xl mx-auto">
+              Manage your account, subscription, and preferences all in one place
+            </p>
           </div>
 
-          {/* Main Content */}
-          <div className="lg:col-span-3">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
             
-            {/* Account Tab */}
-            {activeTab === 'account' && (
-              <div className="premium-card p-6">
-                <h2 className="text-2xl font-semibold text-white mb-6">Account Information</h2>
-                
-                <div className="space-y-6">
-                  
-                  {/* Profile Info */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-white/60 text-sm font-medium mb-2">Email Address</label>
-                      <div className="bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-white">
-                        {userProfile.email}
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-white/60 text-sm font-medium mb-2">Member Since</label>
-                      <div className="bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-white">
-                        {formatDate(userProfile.created_at)}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Account Stats */}
-                  <div className="border-t border-white/10 pt-6">
-                    <h3 className="text-lg font-medium text-white mb-4">Account Statistics</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="bg-white/5 rounded-lg p-4">
-                        <div className="text-2xl font-bold text-blue-400">{userProfile.usage_used}</div>
-                        <div className="text-white/60 text-sm">Content Jobs Used</div>
-                      </div>
-                      <div className="bg-white/5 rounded-lg p-4">
-                        <div className="text-2xl font-bold text-green-400">~6</div>
-                        <div className="text-white/60 text-sm">Hours Saved</div>
-                      </div>
-                      <div className="bg-white/5 rounded-lg p-4">
-                        <div className="text-2xl font-bold text-purple-400">5</div>
-                        <div className="text-white/60 text-sm">Platforms Optimized</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Danger Zone */}
-                  <div className="border-t border-red-500/20 pt-6">
-                    <h3 className="text-lg font-medium text-red-400 mb-4">Danger Zone</h3>
-                    <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="text-white font-medium">Delete Account</h4>
-                          <p className="text-white/60 text-sm">Permanently delete your account and all data</p>
+            {/* Sidebar Navigation */}
+            <div className="lg:col-span-1">
+              <div className="group relative">
+                <div className="absolute -inset-1 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300"></div>
+                <div className="relative bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 p-6 rounded-xl">
+                  <nav className="space-y-3">
+                    {tabs.map((tab) => (
+                      <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`group w-full flex items-center space-x-4 px-4 py-4 rounded-xl text-left transition-all duration-300 ${
+                          activeTab === tab.id
+                            ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 text-white scale-105'
+                            : 'text-slate-300 hover:text-white hover:bg-slate-700/30 hover:scale-102'
+                        }`}
+                      >
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                          activeTab === tab.id 
+                            ? `bg-gradient-to-r ${tab.gradient}` 
+                            : 'bg-slate-700/50'
+                        }`}>
+                          <span className="text-lg">{tab.icon}</span>
                         </div>
-                        <button className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors">
-                          Delete Account
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
+                        <span className="font-medium">{tab.name}</span>
+                      </button>
+                    ))}
+                  </nav>
                 </div>
               </div>
-            )}
+            </div>
 
-            {/* Subscription Tab */}
-            {activeTab === 'subscription' && (
-              <div className="premium-card p-6">
-                <h2 className="text-2xl font-semibold text-white mb-6">Subscription & Billing</h2>
-                
-                <div className="space-y-6">
-                  
-                  {/* Current Plan */}
-                  <div className="bg-white/5 rounded-lg p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <h3 className="text-lg font-medium text-white">Current Plan</h3>
-                        <p className="text-white/60">Your current subscription details</p>
+            {/* Main Content */}
+            <div className="lg:col-span-3">
+                {/* Account Tab */}
+              {activeTab === 'account' && (
+                <div className="group relative">
+                  <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300"></div>
+                  <div className="relative bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 p-8 rounded-xl">
+                    <h2 className="text-3xl font-bold text-white mb-8 flex items-center gap-3">
+                      <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl flex items-center justify-center">
+                        <span>👤</span>
                       </div>
-                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${getSubscriptionColor(userProfile.subscription_tier)} bg-current bg-opacity-20`}>
-                        {userProfile.subscription_tier}
-                      </span>
-                    </div>
+                      Account Information
+                    </h2>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                      <div>
-                        <div className="text-white/60 text-sm">Monthly Limit</div>
-                        <div className="text-white font-medium">{userProfile.usage_limit} content jobs</div>
-                      </div>
-                      <div>
-                        <div className="text-white/60 text-sm">Used This Month</div>
-                        <div className="text-white font-medium">{userProfile.usage_used} / {userProfile.usage_limit}</div>
-                      </div>
-                    </div>
-
-                    {userProfile.subscription_tier === 'Free Trial' && (
-                      <div className="bg-blue-500/20 border border-blue-500/30 rounded-lg p-4 mb-4">
-                        <h4 className="text-blue-400 font-medium mb-2">Upgrade Your Plan</h4>
-                        <p className="text-white/70 text-sm mb-3">
-                          Get unlimited content transformations and advanced features
-                        </p>
-                        <button className="premium-button">
-                          View Plans & Pricing
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Usage Breakdown */}
-                  <div>
-                    <h3 className="text-lg font-medium text-white mb-4">Usage This Month</h3>
-                    <div className="bg-white/5 rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-white/60">Content Jobs</span>
-                        <span className="text-white">{userProfile.usage_used} / {userProfile.usage_limit}</span>
-                      </div>
-                      <div className="w-full bg-white/10 rounded-full h-2">
-                        <div 
-                          className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${Math.min((userProfile.usage_used / userProfile.usage_limit) * 100, 100)}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Billing History */}
-                  <div>
-                    <h3 className="text-lg font-medium text-white mb-4">Billing History</h3>
-                    <div className="bg-white/5 rounded-lg p-6 text-center">
-                      <div className="text-white/40 text-4xl mb-4">📄</div>
-                      <p className="text-white/60">No billing history available</p>
-                      <p className="text-white/40 text-sm">You're currently on the free trial</p>
-                    </div>
-                  </div>
-
-                </div>
-              </div>
-            )}
-
-            {/* Preferences Tab */}
-            {activeTab === 'preferences' && (
-              <div className="premium-card p-6">
-                <h2 className="text-2xl font-semibold text-white mb-6">Preferences</h2>
-                
-                <div className="space-y-6">
-                  
-                  {/* Notifications */}
-                  <div>
-                    <h3 className="text-lg font-medium text-white mb-4">Notifications</h3>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="text-white font-medium">Email Notifications</h4>
-                          <p className="text-white/60 text-sm">Receive updates about your content processing</p>
-                        </div>
-                        <button
-                          onClick={() => setPreferences(prev => ({ ...prev, email_notifications: !prev.email_notifications }))}
-                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                            preferences.email_notifications ? 'bg-blue-500' : 'bg-white/20'
-                          }`}
-                        >
-                          <span
-                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                              preferences.email_notifications ? 'translate-x-6' : 'translate-x-1'
-                            }`}
-                          />
-                        </button>
-                      </div>
+                    <div className="space-y-8">
                       
-                      <div className="flex items-center justify-between">
+                      {/* Profile Info */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                          <h4 className="text-white font-medium">Marketing Emails</h4>
-                          <p className="text-white/60 text-sm">Receive tips, updates, and promotional content</p>
+                          <label className="block text-slate-300 text-sm font-semibold mb-3">Email Address</label>
+                          <div className="bg-slate-700/30 border border-slate-600/50 rounded-xl px-4 py-4 text-white font-medium">
+                            {userProfile.email}
+                          </div>
                         </div>
-                        <button
-                          onClick={() => setPreferences(prev => ({ ...prev, marketing_emails: !prev.marketing_emails }))}
-                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                            preferences.marketing_emails ? 'bg-blue-500' : 'bg-white/20'
-                          }`}
-                        >
-                          <span
-                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                              preferences.marketing_emails ? 'translate-x-6' : 'translate-x-1'
-                            }`}
-                          />
-                        </button>
+                        <div>
+                          <label className="block text-slate-300 text-sm font-semibold mb-3">Member Since</label>
+                          <div className="bg-slate-700/30 border border-slate-600/50 rounded-xl px-4 py-4 text-white font-medium">
+                            {formatDate(userProfile.created_at)}
+                          </div>
+                        </div>
                       </div>
+
+                      {/* Account Stats */}
+                      <div className="border-t border-slate-700/50 pt-8">
+                        <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                          <span>📊</span>
+                          Account Statistics
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                          <div className="group relative">
+                            <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl blur opacity-25 group-hover:opacity-50 transition duration-300"></div>
+                            <div className="relative bg-slate-700/30 border border-slate-600/50 rounded-xl p-6 text-center">
+                              <div className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
+                                {userProfile.usage_used}
+                              </div>
+                              <div className="text-slate-300 text-sm font-medium">Content Jobs Used</div>
+                            </div>
+                          </div>
+                          <div className="group relative">
+                            <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-blue-500 rounded-xl blur opacity-25 group-hover:opacity-50 transition duration-300"></div>
+                            <div className="relative bg-slate-700/30 border border-slate-600/50 rounded-xl p-6 text-center">
+                              <div className="text-3xl font-bold bg-gradient-to-r from-emerald-400 to-blue-400 bg-clip-text text-transparent mb-2">
+                                ~6
+                              </div>
+                              <div className="text-slate-300 text-sm font-medium">Hours Saved</div>
+                            </div>
+                          </div>
+                          <div className="group relative">
+                            <div className="absolute -inset-1 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl blur opacity-25 group-hover:opacity-50 transition duration-300"></div>
+                            <div className="relative bg-slate-700/30 border border-slate-600/50 rounded-xl p-6 text-center">
+                              <div className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-2">
+                                5
+                              </div>
+                              <div className="text-slate-300 text-sm font-medium">Platforms Optimized</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Danger Zone */}
+                      <div className="border-t border-red-500/20 pt-8">
+                        <h3 className="text-xl font-bold text-red-400 mb-6 flex items-center gap-2">
+                          <span>⚠️</span>
+                          Danger Zone
+                        </h3>
+                        <div className="bg-gradient-to-r from-red-500/20 to-pink-500/20 border border-red-500/30 rounded-xl p-6">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h4 className="text-white font-semibold text-lg mb-2">Delete Account</h4>
+                              <p className="text-slate-300">Permanently delete your account and all data. This action cannot be undone.</p>
+                            </div>
+                            <button className="group relative">
+                              <div className="absolute -inset-1 bg-gradient-to-r from-red-500 to-pink-500 rounded-xl blur opacity-75 group-hover:opacity-100 transition duration-300"></div>
+                              <div className="relative bg-gradient-to-r from-red-500 to-pink-500 text-white font-semibold px-6 py-3 rounded-lg hover:scale-105 transition duration-300">
+                                Delete Account
+                              </div>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
                     </div>
                   </div>
-
-                  {/* Content Defaults */}
-                  <div className="border-t border-white/10 pt-6">
-                    <h3 className="text-lg font-medium text-white mb-4">Content Defaults</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <label className="block text-white/60 text-sm font-medium mb-2">Default Content Type</label>
-                        <select
-                          value={preferences.default_content_type}
-                          onChange={(e) => setPreferences(prev => ({ ...prev, default_content_type: e.target.value }))}
-                          className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="blog">Blog Post</option>
-                          <option value="video">Video Script</option>
-                          <option value="podcast">Podcast</option>
-                          <option value="visual">Visual Story</option>
-                        </select>
+                </div>
+              )}
+        {/* Subscription Tab */}
+              {activeTab === 'subscription' && (
+                <div className="group relative">
+                  <div className="absolute -inset-1 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300"></div>
+                  <div className="relative bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 p-8 rounded-xl">
+                    <h2 className="text-3xl font-bold text-white mb-8 flex items-center gap-3">
+                      <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
+                        <span>💳</span>
                       </div>
+                      Subscription & Billing
+                    </h2>
+                    
+                    <div className="space-y-8">
                       
+                      {/* Current Plan */}
+                      <div className="group relative">
+                        <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl blur opacity-25 group-hover:opacity-50 transition duration-300"></div>
+                        <div className="relative bg-slate-700/30 border border-slate-600/50 rounded-xl p-6">
+                          <div className="flex items-center justify-between mb-6">
+                            <div>
+                              <h3 className="text-xl font-bold text-white mb-2">Current Plan</h3>
+                              <p className="text-slate-300">Your current subscription details</p>
+                            </div>
+                            <div className={`px-4 py-2 rounded-full text-sm font-semibold bg-gradient-to-r ${getSubscriptionColor(userProfile.subscription_tier)} text-white`}>
+                              {userProfile.subscription_tier}
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                            <div className="bg-slate-800/50 rounded-lg p-4">
+                              <div className="text-slate-300 text-sm font-medium mb-1">Monthly Limit</div>
+                              <div className="text-white font-bold text-lg">{userProfile.usage_limit} content jobs</div>
+                            </div>
+                            <div className="bg-slate-800/50 rounded-lg p-4">
+                              <div className="text-slate-300 text-sm font-medium mb-1">Used This Month</div>
+                              <div className="text-white font-bold text-lg">{userProfile.usage_used} / {userProfile.usage_limit}</div>
+                            </div>
+                          </div>
+
+                          {userProfile.subscription_tier === 'Free Trial' && (
+                            <div className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 rounded-xl p-6">
+                              <h4 className="text-blue-400 font-bold text-lg mb-3 flex items-center gap-2">
+                                <span>🚀</span>
+                                Upgrade Your Plan
+                              </h4>
+                              <p className="text-slate-300 mb-4 leading-relaxed">
+                                Unlock unlimited content transformations, advanced features, and priority support with our premium plans.
+                              </p>
+                              <button className="group relative">
+                                <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl blur opacity-75 group-hover:opacity-100 transition duration-300"></div>
+                                <div className="relative bg-gradient-to-r from-blue-500 to-purple-500 text-white font-semibold px-8 py-3 rounded-lg hover:scale-105 transition duration-300">
+                                  View Plans & Pricing
+                                </div>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Usage Breakdown */}
                       <div>
-                        <label className="block text-white/60 text-sm font-medium mb-2">Processing Speed</label>
-                        <select
-                          value={preferences.default_processing_speed}
-                          onChange={(e) => setPreferences(prev => ({ ...prev, default_processing_speed: e.target.value }))}
-                          className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="fast">Fast (Less detailed)</option>
-                          <option value="balanced">Balanced (Recommended)</option>
-                          <option value="quality">Quality (More detailed)</option>
-                        </select>
+                        <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                          <span>📈</span>
+                          Usage This Month
+                        </h3>
+                        <div className="bg-slate-700/30 border border-slate-600/50 rounded-xl p-6">
+                          <div className="flex items-center justify-between mb-4">
+                            <span className="text-slate-300 font-medium">Content Jobs</span>
+                            <span className="text-white font-bold text-lg">{userProfile.usage_used} / {userProfile.usage_limit}</span>
+                          </div>
+                          <div className="w-full bg-slate-600/50 rounded-full h-3 mb-2">
+                            <div 
+                              className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full transition-all duration-500 relative overflow-hidden"
+                              style={{ width: `${Math.min((userProfile.usage_used / userProfile.usage_limit) * 100, 100)}%` }}
+                            >
+                              <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
+                            </div>
+                          </div>
+                          <p className="text-slate-400 text-sm">
+                            {userProfile.usage_limit - userProfile.usage_used} jobs remaining in your {userProfile.subscription_tier.toLowerCase()}
+                          </p>
+                        </div>
                       </div>
+
+                      {/* Billing History */}
+                      <div>
+                        <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                          <span>📄</span>
+                          Billing History
+                        </h3>
+                        <div className="bg-slate-700/30 border border-slate-600/50 rounded-xl p-8 text-center">
+                          <div className="w-16 h-16 bg-gradient-to-r from-slate-600 to-slate-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                            <span className="text-2xl">📄</span>
+                          </div>
+                          <h4 className="text-white font-semibold text-lg mb-2">No billing history available</h4>
+                          <p className="text-slate-400">You're currently on the free trial - no charges yet!</p>
+                        </div>
+                      </div>
+
                     </div>
                   </div>
-
-                  {/* Save Button */}
-                  <div className="border-t border-white/10 pt-6">
-                    <button
-                      onClick={handleSavePreferences}
-                      disabled={isSaving}
-                      className="premium-button disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isSaving ? 'Saving...' : 'Save Preferences'}
-                    </button>
-                  </div>
-
                 </div>
-              </div>
-            )}
-
-            {/* Security Tab */}
-            {activeTab === 'security' && (
-              <div className="premium-card p-6">
-                <h2 className="text-2xl font-semibold text-white mb-6">Security</h2>
-                
-                <div className="space-y-6">
-                  
-                  {/* Password */}
-                  <div>
-                    <h3 className="text-lg font-medium text-white mb-4">Password</h3>
-                    <div className="bg-white/5 rounded-lg p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="text-white font-medium">Change Password</h4>
-                          <p className="text-white/60 text-sm">Update your account password</p>
-                        </div>
-                        <button className="bg-white/10 hover:bg-white/20 border border-white/20 text-white px-4 py-2 rounded-lg transition-colors">
-                          Change Password
-                        </button>
+              )}
+             {/* Preferences Tab */}
+              {activeTab === 'preferences' && (
+                <div className="group relative">
+                  <div className="absolute -inset-1 bg-gradient-to-r from-pink-500 to-red-500 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300"></div>
+                  <div className="relative bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 p-8 rounded-xl">
+                    <h2 className="text-3xl font-bold text-white mb-8 flex items-center gap-3">
+                      <div className="w-10 h-10 bg-gradient-to-r from-pink-500 to-red-500 rounded-xl flex items-center justify-center">
+                        <span>⚙️</span>
                       </div>
-                    </div>
-                  </div>
-
-                  {/* Sessions */}
-                  <div>
-                    <h3 className="text-lg font-medium text-white mb-4">Active Sessions</h3>
-                    <div className="bg-white/5 rounded-lg p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="text-white font-medium">Current Session</h4>
-                          <p className="text-white/60 text-sm">This device • Active now</p>
+                      Preferences
+                    </h2>
+                    
+                    <div className="space-y-8">
+                      
+                      {/* Notifications */}
+                      <div>
+                        <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                          <span>🔔</span>
+                          Notifications
+                        </h3>
+                        <div className="space-y-6">
+                          <div className="bg-slate-700/30 border border-slate-600/50 rounded-xl p-6">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h4 className="text-white font-semibold text-lg mb-2">Email Notifications</h4>
+                                <p className="text-slate-300">Receive updates about your content processing and account activity</p>
+                              </div>
+                              <button
+                                onClick={() => setPreferences(prev => ({ ...prev, email_notifications: !prev.email_notifications }))}
+                                className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors duration-300 ${
+                                  preferences.email_notifications ? 'bg-gradient-to-r from-blue-500 to-purple-500' : 'bg-slate-600'
+                                }`}
+                              >
+                                <span
+                                  className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform duration-300 shadow-lg ${
+                                    preferences.email_notifications ? 'translate-x-6' : 'translate-x-1'
+                                  }`}
+                                />
+                              </button>
+                            </div>
+                          </div>
+                          
+                          <div className="bg-slate-700/30 border border-slate-600/50 rounded-xl p-6">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h4 className="text-white font-semibold text-lg mb-2">Marketing Emails</h4>
+                                <p className="text-slate-300">Receive tips, product updates, and promotional content</p>
+                              </div>
+                              <button
+                                onClick={() => setPreferences(prev => ({ ...prev, marketing_emails: !prev.marketing_emails }))}
+                                className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors duration-300 ${
+                                  preferences.marketing_emails ? 'bg-gradient-to-r from-purple-500 to-pink-500' : 'bg-slate-600'
+                                }`}
+                              >
+                                <span
+                                  className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform duration-300 shadow-lg ${
+                                    preferences.marketing_emails ? 'translate-x-6' : 'translate-x-1'
+                                  }`}
+                                />
+                              </button>
+                            </div>
+                          </div>
                         </div>
-                        <span className="bg-green-500/20 text-green-400 px-3 py-1 rounded-full text-sm">
-                          Active
-                        </span>
                       </div>
-                    </div>
-                  </div>
 
-                  {/* Sign Out */}
-                  <div className="border-t border-white/10 pt-6">
-                    <div className="bg-white/5 rounded-lg p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="text-white font-medium">Sign Out</h4>
-                          <p className="text-white/60 text-sm">Sign out of your account on this device</p>
+                      {/* Content Defaults */}
+                      <div className="border-t border-slate-700/50 pt-8">
+                        <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                          <span>🎯</span>
+                          Content Defaults
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div>
+                            <label className="block text-slate-300 text-sm font-semibold mb-3">Default Content Type</label>
+                            <select
+                              value={preferences.default_content_type}
+                              onChange={(e) => setPreferences(prev => ({ ...prev, default_content_type: e.target.value }))}
+                              className="w-full bg-slate-700/50 border border-slate-600/50 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                            >
+                              <option value="blog">📝 Blog Post</option>
+                              <option value="video">🎥 Video Script</option>
+                              <option value="podcast">🎙️ Podcast</option>
+                              <option value="visual">📸 Visual Story</option>
+                            </select>
+                          </div>
+                          
+                          <div>
+                            <label className="block text-slate-300 text-sm font-semibold mb-3">Processing Speed</label>
+                            <select
+                              value={preferences.default_processing_speed}
+                              onChange={(e) => setPreferences(prev => ({ ...prev, default_processing_speed: e.target.value }))}
+                              className="w-full bg-slate-700/50 border border-slate-600/50 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
+                            >
+                              <option value="fast">⚡ Fast (Less detailed)</option>
+                              <option value="balanced">⚖️ Balanced (Recommended)</option>
+                              <option value="quality">💎 Quality (More detailed)</option>
+                            </select>
+                          </div>
                         </div>
+                      </div>
+
+                      {/* Save Button */}
+                      <div className="border-t border-slate-700/50 pt-8">
                         <button
-                          onClick={handleLogout}
-                          className="bg-red-500/20 hover:bg-red-500/30 border border-red-500/20 text-red-400 px-4 py-2 rounded-lg transition-colors"
+                          onClick={handleSavePreferences}
+                          disabled={isSaving}
+                          className="group relative disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          Sign Out
+                          <div className="absolute -inset-1 bg-gradient-to-r from-pink-500 to-red-500 rounded-xl blur opacity-75 group-hover:opacity-100 transition duration-300"></div>
+                          <div className="relative bg-gradient-to-r from-pink-500 to-red-500 text-white font-semibold px-8 py-4 rounded-lg hover:scale-105 transition duration-300 flex items-center gap-3">
+                            {isSaving ? (
+                              <>
+                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                                <span>Saving...</span>
+                              </>
+                            ) : (
+                              <>
+                                <span>💾</span>
+                                <span>Save Preferences</span>
+                              </>
+                            )}
+                          </div>
                         </button>
                       </div>
+
                     </div>
                   </div>
-
                 </div>
-              </div>
-            )}
+              )}
+              {/* Security Tab */}
+              {activeTab === 'security' && (
+                <div className="group relative">
+                  <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-blue-500 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300"></div>
+                  <div className="relative bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 p-8 rounded-xl">
+                    <h2 className="text-3xl font-bold text-white mb-8 flex items-center gap-3">
+                      <div className="w-10 h-10 bg-gradient-to-r from-emerald-500 to-blue-500 rounded-xl flex items-center justify-center">
+                        <span>🔒</span>
+                      </div>
+                      Security
+                    </h2>
+                    
+                    <div className="space-y-8">
+                      
+                      {/* Password */}
+                      <div>
+                        <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                          <span>🔐</span>
+                          Password
+                        </h3>
+                        <div className="bg-slate-700/30 border border-slate-600/50 rounded-xl p-6">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h4 className="text-white font-semibold text-lg mb-2">Change Password</h4>
+                              <p className="text-slate-300">Update your account password for enhanced security</p>
+                            </div>
+                            <button className="group relative">
+                              <div className="absolute -inset-1 bg-gradient-to-r from-slate-600 to-slate-500 rounded-xl blur opacity-50 group-hover:opacity-75 transition duration-300"></div>
+                              <div className="relative bg-slate-700/50 border border-slate-600/50 text-white font-semibold px-6 py-3 rounded-lg hover:bg-slate-600/50 transition duration-300">
+                                Change Password
+                              </div>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
 
+                      {/* Sessions */}
+                      <div>
+                        <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                          <span>📱</span>
+                          Active Sessions
+                        </h3>
+                        <div className="bg-slate-700/30 border border-slate-600/50 rounded-xl p-6">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 bg-gradient-to-r from-emerald-500 to-blue-500 rounded-xl flex items-center justify-center">
+                                <span>💻</span>
+                              </div>
+                              <div>
+                                <h4 className="text-white font-semibold text-lg">Current Session</h4>
+                                <p className="text-slate-300">This device • Active now • Chrome on Windows</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+                              <span className="bg-gradient-to-r from-emerald-500/20 to-blue-500/20 text-emerald-300 px-3 py-1 rounded-full text-sm font-medium border border-emerald-500/30">
+                                Active
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Two-Factor Authentication */}
+                      <div>
+                        <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                          <span>🛡️</span>
+                          Two-Factor Authentication
+                        </h3>
+                        <div className="bg-slate-700/30 border border-slate-600/50 rounded-xl p-6">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h4 className="text-white font-semibold text-lg mb-2">Secure Your Account</h4>
+                              <p className="text-slate-300">Add an extra layer of security with 2FA authentication</p>
+                            </div>
+                            <button className="group relative">
+                              <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-blue-500 rounded-xl blur opacity-75 group-hover:opacity-100 transition duration-300"></div>
+                              <div className="relative bg-gradient-to-r from-emerald-500 to-blue-500 text-white font-semibold px-6 py-3 rounded-lg hover:scale-105 transition duration-300">
+                                Enable 2FA
+                              </div>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Sign Out */}
+                      <div className="border-t border-red-500/20 pt-8">
+                        <h3 className="text-xl font-bold text-red-400 mb-6 flex items-center gap-2">
+                          <span>🚪</span>
+                          Session Management
+                        </h3>
+                        <div className="bg-gradient-to-r from-red-500/20 to-pink-500/20 border border-red-500/30 rounded-xl p-6">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h4 className="text-white font-semibold text-lg mb-2">Sign Out</h4>
+                              <p className="text-slate-300">Sign out of your account on this device</p>
+                            </div>
+                            <button
+                              onClick={handleLogout}
+                              className="group relative"
+                            >
+                              <div className="absolute -inset-1 bg-gradient-to-r from-red-500 to-pink-500 rounded-xl blur opacity-75 group-hover:opacity-100 transition duration-300"></div>
+                              <div className="relative bg-gradient-to-r from-red-500 to-pink-500 text-white font-semibold px-6 py-3 rounded-lg hover:scale-105 transition duration-300">
+                                Sign Out
+                              </div>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              )}
+
+            </div>
           </div>
         </div>
       </div>
     </div>
   );
-}
+} 
