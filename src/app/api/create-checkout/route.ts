@@ -1,4 +1,4 @@
-// app/api/create-checkout/route.ts - final
+// app/api/create-checkout/route.ts - FIXED VERSION
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
@@ -14,16 +14,46 @@ const STRIPE_PRICES = {
 
 export async function POST(request: NextRequest) {
   try {
+    // Get the authorization header from the request
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { error: 'Missing or invalid authorization header' },
+        { status: 401 }
+      );
+    }
+
+    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+
+    // Create Supabase client with the user's JWT token
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        global: {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      }
     );
 
-    const { userId, tier } = await request.json();
-
-    if (!userId || !tier) {
+    // Verify the user is authenticated
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    
+    if (authError || !user) {
+      console.error('Auth error:', authError);
       return NextResponse.json(
-        { error: 'User ID and tier are required' },
+        { error: 'Invalid authentication token' },
+        { status: 401 }
+      );
+    }
+
+    const { tier } = await request.json();
+
+    if (!tier) {
+      return NextResponse.json(
+        { error: 'Tier is required' },
         { status: 400 }
       );
     }
@@ -38,16 +68,17 @@ export async function POST(request: NextRequest) {
 
     const priceId = STRIPE_PRICES[tier as keyof typeof STRIPE_PRICES];
 
-    // Get user profile
+    // Get user profile using the authenticated user's ID
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
-      .eq('id', userId)
+      .eq('id', user.id)
       .single();
 
     if (profileError || !profile) {
+      console.error('Profile error:', profileError);
       return NextResponse.json(
-        { error: 'User not found' },
+        { error: 'User profile not found' },
         { status: 404 }
       );
     }
@@ -57,18 +88,23 @@ export async function POST(request: NextRequest) {
 
     if (!customerId) {
       const customer = await stripe.customers.create({
-        email: profile.email,
+        email: user.email || profile.email,
         metadata: {
-          userId: userId,
+          userId: user.id,
         },
       });
       customerId = customer.id;
 
-      // Update profile with Stripe customer ID
-      await supabase
+      // Update profile with Stripe customer ID using service role for this operation
+      const adminSupabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      );
+
+      await adminSupabase
         .from('profiles')
         .update({ stripe_customer_id: customerId })
-        .eq('id', userId);
+        .eq('id', user.id);
     }
 
     // Create Stripe checkout session
@@ -85,12 +121,12 @@ export async function POST(request: NextRequest) {
       success_url: `${request.headers.get('origin')}/dashboard?success=true&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${request.headers.get('origin')}/pricing?canceled=true`,
       metadata: {
-        userId: userId,
+        userId: user.id,
         tier: tier,
       },
       subscription_data: {
         metadata: {
-          userId: userId,
+          userId: user.id,
           tier: tier,
         },
       },

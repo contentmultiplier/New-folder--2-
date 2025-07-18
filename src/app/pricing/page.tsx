@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { SUBSCRIPTION_TIERS } from '@/lib/subscription-config';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@supabase/supabase-js';
 
 const PLATFORM_ICONS = {
   linkedin: '💼',
@@ -37,18 +38,34 @@ export default function PricingPage() {
     setLoading(tier);
 
     try {
+      // Get the current session token
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session?.access_token) {
+        throw new Error('No valid session found');
+      }
+
       const response = await fetch('/api/create-checkout', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
-          userId: user.id,
           tier: tier,
         }),
       });
 
       const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create checkout session');
+      }
       
       if (data.url) {
         // Redirect to Stripe Checkout
@@ -56,9 +73,9 @@ export default function PricingPage() {
       } else {
         throw new Error('No checkout URL received');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Subscription error:', error);
-      alert('Failed to start subscription. Please try again.');
+      alert(`Failed to start subscription: ${error.message}`);
     } finally {
       setLoading(null);
     }
