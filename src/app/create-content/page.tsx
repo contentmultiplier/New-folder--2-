@@ -36,11 +36,11 @@ const PLATFORM_NAMES = {
 };
 
 const TIER_LIMITS = {
-  trial: { jobs: 3, platforms: ['twitter', 'linkedin', 'facebook'] },
-  basic: { jobs: 20, platforms: ['twitter', 'linkedin', 'facebook', 'instagram'] },
-  pro: { jobs: 100, platforms: ['twitter', 'linkedin', 'facebook', 'instagram', 'youtube'] },
-  business: { jobs: 500, platforms: ['twitter', 'linkedin', 'facebook', 'instagram', 'youtube', 'tiktok'] },
-  enterprise: { jobs: 999999, platforms: ['twitter', 'linkedin', 'facebook', 'instagram', 'youtube', 'tiktok'] },
+  trial: { jobs: 3, platforms: ['linkedin', 'twitter'] },
+  basic: { jobs: 20, platforms: ['linkedin', 'twitter', 'facebook', 'instagram'] },
+  pro: { jobs: 100, platforms: ['linkedin', 'twitter', 'facebook', 'instagram', 'youtube'] },
+  business: { jobs: 500, platforms: ['linkedin', 'twitter', 'facebook', 'instagram', 'youtube', 'tiktok'] },
+  enterprise: { jobs: 999999, platforms: ['linkedin', 'twitter', 'facebook', 'instagram', 'youtube', 'tiktok'] },
 };
 
 export default function CreateContentPage() {
@@ -51,7 +51,7 @@ export default function CreateContentPage() {
   const [selectedTab, setSelectedTab] = useState<'text' | 'file'>('text');
   const [textContent, setTextContent] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['twitter', 'linkedin']);
+  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['linkedin', 'twitter']);
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState<ProcessingStep[]>([]);
   const [response, setResponse] = useState<any>(null);
@@ -61,7 +61,7 @@ export default function CreateContentPage() {
     tier: 'trial',
     jobsUsed: 0,
     jobsLimit: 3,
-    platformAccess: ['twitter', 'linkedin', 'facebook']
+    platformAccess: ['linkedin', 'twitter']
   });
   const [copyFeedback, setCopyFeedback] = useState<{[key: string]: boolean}>({});
 
@@ -82,10 +82,22 @@ export default function CreateContentPage() {
       if (data.success) {
         setUserTier(data.data);
         const availablePlatforms = data.data.platformAccess;
-        setSelectedPlatforms(availablePlatforms.slice(0, 2));
+        setSelectedPlatforms(availablePlatforms.slice(0, Math.min(2, availablePlatforms.length)));
       }
     } catch (error) {
       console.error('Error fetching user tier:', error);
+    }
+  };
+
+  // Helper function to get max platforms for tier
+  const getMaxPlatformsForTier = (tier: string) => {
+    switch (tier) {
+      case 'trial': return 2;        // LinkedIn + Twitter
+      case 'basic': return 4;        // LinkedIn, Twitter, Facebook, Instagram  
+      case 'pro': return 5;          // + YouTube
+      case 'business': return 6;     // + TikTok
+      case 'enterprise': return 6;   // All 6 platforms
+      default: return 2;
     }
   };
 
@@ -105,13 +117,14 @@ export default function CreateContentPage() {
     
     setSelectedPlatforms(prev => {
       if (prev.includes(platform)) {
+        // Always allow deselecting
         return prev.filter(p => p !== platform);
       } else {
-        const maxPlatforms = userTier.tier === 'trial' ? 3 : 
-                            userTier.tier === 'basic' ? 4 :
-                            userTier.tier === 'pro' ? 5 : 6;
+        // Check if we can add more platforms based on tier
+        const maxPlatforms = getMaxPlatformsForTier(userTier.tier);
         
         if (prev.length >= maxPlatforms) {
+          // Don't add more if at limit, but don't prevent interaction
           return prev;
         }
         return [...prev, platform];
@@ -476,18 +489,22 @@ export default function CreateContentPage() {
                 const isAvailable = isPlatformAvailable(platform);
                 const isSelected = selectedPlatforms.includes(platform);
                 const isLocked = !isAvailable;
+                const maxPlatforms = getMaxPlatformsForTier(userTier.tier);
+                const canSelect = isSelected || selectedPlatforms.length < maxPlatforms;
                 
                 return (
                   <button
                     key={platform}
                     onClick={() => togglePlatform(platform)}
-                    disabled={isLocked || processing}
+                    disabled={isLocked || processing || (!canSelect && !isSelected)}
                     className={`relative backdrop-blur-xl border rounded-2xl p-4 text-center transition-all duration-300 ${
                       isLocked 
                         ? 'bg-slate-800/30 border-slate-600/30 opacity-50 cursor-not-allowed' 
                         : isSelected
                           ? 'bg-cyan-500/20 border-cyan-400/50 ring-2 ring-cyan-400 scale-105'
-                          : 'bg-white/10 border-white/20 hover:bg-white/20 hover:scale-105'
+                          : canSelect
+                            ? 'bg-white/10 border-white/20 hover:bg-white/20 hover:scale-105'
+                            : 'bg-slate-800/30 border-slate-600/30 opacity-50 cursor-not-allowed'
                     }`}
                   >
                     {isLocked && (
@@ -505,6 +522,14 @@ export default function CreateContentPage() {
                       <div className="text-xs text-slate-400 mt-1">Business+</div>
                     )}
                     
+                    {platform === 'instagram' && isLocked && (
+                      <div className="text-xs text-slate-400 mt-1">Basic+</div>
+                    )}
+                    
+                    {platform === 'youtube' && isLocked && (
+                      <div className="text-xs text-slate-400 mt-1">Pro+</div>
+                    )}
+                    
                     {isSelected && (
                       <div className="absolute top-2 right-2 w-5 h-5 bg-cyan-400 rounded-full flex items-center justify-center">
                         <span className="text-white text-xs">✓</span>
@@ -518,8 +543,23 @@ export default function CreateContentPage() {
             {selectedPlatforms.length > 0 && (
               <div className="mt-4 p-4 bg-green-500/10 border border-green-500/30 rounded-xl">
                 <p className="text-green-300 text-sm">
-                  ✓ Selected {selectedPlatforms.length} platform{selectedPlatforms.length > 1 ? 's' : ''}: {' '}
+                  ✓ Selected {selectedPlatforms.length} / {getMaxPlatformsForTier(userTier.tier)} platforms: {' '}
                   {selectedPlatforms.map(p => PLATFORM_NAMES[p as keyof typeof PLATFORM_NAMES]).join(', ')}
+                </p>
+              </div>
+            )}
+
+            {selectedPlatforms.length === getMaxPlatformsForTier(userTier.tier) && (
+              <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl">
+                <p className="text-blue-300 text-sm flex items-center gap-2">
+                  <span>ℹ️</span>
+                  You've selected the maximum platforms for your {userTier.tier} plan. 
+                  <button
+                    onClick={() => router.push('/pricing')}
+                    className="text-cyan-400 hover:text-cyan-300 underline ml-1"
+                  >
+                    Upgrade for more platforms
+                  </button>
                 </p>
               </div>
             )}
