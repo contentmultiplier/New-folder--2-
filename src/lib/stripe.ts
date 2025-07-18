@@ -1,26 +1,28 @@
 import Stripe from 'stripe';
 
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error('STRIPE_SECRET_KEY is not set');
+// Server-side Stripe initialization (only runs on server)
+let stripe: Stripe | null = null;
+
+if (typeof window === 'undefined') {
+  // Only initialize on server-side
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error('STRIPE_SECRET_KEY is not set');
+  }
+  
+  stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+    typescript: true,
+  });
 }
 
-// Initialize Stripe with your secret key
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  typescript: true,
-});
+// Export stripe instance (will be null on client-side)
+export { stripe };
 
-// Stripe configuration
+// Client-safe Stripe configuration
 export const STRIPE_CONFIG = {
-  publishableKey: process.env.STRIPE_PUBLISHABLE_KEY!,
-  priceIds: {
-    basic: process.env.STRIPE_BASIC_PRICE_ID!,
-    pro: process.env.STRIPE_PRO_PRICE_ID!,
-    business: process.env.STRIPE_BUSINESS_PRICE_ID!,
-    enterprise: process.env.STRIPE_ENTERPRISE_PRICE_ID!,
-  },
+  publishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!,
 };
 
-// Subscription tier configuration
+// Subscription tier configuration (client-safe)
 export const SUBSCRIPTION_TIERS = {
   trial: {
     name: 'Free Trial',
@@ -40,7 +42,7 @@ export const SUBSCRIPTION_TIERS = {
   basic: {
     name: 'ContentMultiplier Basic',
     price: 29,
-    priceId: process.env.STRIPE_BASIC_PRICE_ID!,
+    priceId: 'prod_ShTs9fA0aP6Yp2', // Use the actual product ID, not environment variable
     features: [
       '20 content transformations/month',
       '4 platforms (LinkedIn, Twitter, Facebook, Instagram)',
@@ -55,7 +57,7 @@ export const SUBSCRIPTION_TIERS = {
   pro: {
     name: 'ContentMultiplier Pro',
     price: 79,
-    priceId: process.env.STRIPE_PRO_PRICE_ID!,
+    priceId: 'prod_ShTsqMfbpk6t1R',
     features: [
       '100 content transformations/month',
       'ALL 5 platforms (LinkedIn, Twitter, Facebook, Instagram, YouTube)',
@@ -70,7 +72,7 @@ export const SUBSCRIPTION_TIERS = {
   business: {
     name: 'ContentMultiplier Business',
     price: 199,
-    priceId: process.env.STRIPE_BUSINESS_PRICE_ID!,
+    priceId: 'prod_ShTs7HVVCmLDbc',
     features: [
       '500 content transformations/month',
       'ALL 5 platforms',
@@ -86,7 +88,7 @@ export const SUBSCRIPTION_TIERS = {
   enterprise: {
     name: 'ContentMultiplier Enterprise',
     price: 499,
-    priceId: process.env.STRIPE_ENTERPRISE_PRICE_ID!,
+    priceId: 'prod_ShTs6OAqDAkzoJ',
     features: [
       'Unlimited transformations',
       'ALL platforms',
