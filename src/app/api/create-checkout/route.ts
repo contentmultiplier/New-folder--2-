@@ -6,10 +6,10 @@ import Stripe from 'stripe';
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 const STRIPE_PRICES = {
-  basic: 'price_1RmM5bF9hnElfa3L60jWbuzk',
-  pro: 'price_1RmM6XF9hnElfa3LCw6VXF5P',
-  business: 'price_1RmM7CF9hnElfa3Lni9c03Eb',
-  enterprise: 'price_1RmM7gF9hnElfa3LUA8n8W6q',
+  basic: 'price_1RmSFZF9hnElfa3Lgqj8eqXc',
+  pro: 'price_1RmSFXF9hnElfa3LmgGO7AVq',
+  business: 'price_1RmSFVF9hnElfa3LX2UcQDYl',
+  enterprise: 'price_1RmSF6F9hnElfa3LlGFkeBUI',
 };
 
 export async function POST(request: NextRequest) {
