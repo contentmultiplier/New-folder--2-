@@ -1,4 +1,4 @@
-// app/api/webhooks/stripe/route.ts - DEBUG VERSION
+// app/api/webhooks/stripe/route.ts - UPDATED WITH REFUND HANDLING
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
@@ -93,6 +93,16 @@ export async function POST(request: NextRequest) {
         await handleSubscriptionDeleted(event.data.object as Stripe.Subscription, supabase);
         break;
 
+      case 'charge.refunded':
+        console.log('Processing charge.refunded');
+        await handleChargeRefunded(event.data.object as Stripe.Charge, supabase);
+        break;
+
+      case 'invoice.payment_failed':
+        console.log('Processing invoice.payment_failed');
+        await handlePaymentFailed(event.data.object as any, supabase);
+        break;
+
       default:
         console.log(`Unhandled event type: ${event.type}`);
     }
@@ -140,7 +150,9 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session, supabas
           id: session.subscription,
           status: 'active',
           customer: session.customer || 'cus_test_sample',
-          metadata: { userId, tier }
+          metadata: { userId, tier },
+          current_period_start: Math.floor(Date.now() / 1000),
+          current_period_end: Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60) // 30 days
         };
       } else {
         // Get the subscription details from Stripe for real subscriptions
@@ -179,6 +191,7 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription, supa
 async function handleSubscriptionUpdated(subscription: Stripe.Subscription, supabase: any) {
   console.log('=== HANDLING SUBSCRIPTION UPDATED ===');
   console.log('Subscription ID:', subscription.id);
+  console.log('Status:', subscription.status);
 
   const userId = subscription.metadata?.userId;
   const tier = subscription.metadata?.tier;
@@ -223,6 +236,109 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription, supa
   }
 }
 
+async function handleChargeRefunded(charge: Stripe.Charge, supabase: any) {
+  console.log('=== HANDLING CHARGE REFUNDED ===');
+  console.log('Charge ID:', charge.id);
+  console.log('Customer ID:', charge.customer);
+  console.log('Amount refunded:', charge.amount_refunded);
+
+  if (!charge.customer) {
+    console.log('No customer associated with charge');
+    return;
+  }
+
+  try {
+    // Find user by customer ID
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('stripe_customer_id', charge.customer)
+      .single();
+
+    if (profileError || !profile) {
+      console.error('❌ Could not find user for customer:', charge.customer);
+      return;
+    }
+
+    const userId = profile.id;
+    console.log('Found user for refund:', userId);
+
+    // Check if this was a full refund
+    if (charge.amount_refunded === charge.amount) {
+      console.log('Full refund detected - canceling subscription access');
+      
+      // Cancel subscription access
+      const { error } = await supabase
+        .from('subscriptions')
+        .update({
+          status: 'canceled',
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', userId);
+
+      if (error) {
+        console.error('❌ Error canceling subscription for refund:', error);
+      } else {
+        console.log(`✅ Successfully canceled subscription access for user ${userId} due to refund`);
+      }
+    } else {
+      console.log('Partial refund - not canceling subscription');
+    }
+
+  } catch (error: any) {
+    console.error('❌ Error in handleChargeRefunded:', error);
+    throw error;
+  }
+}
+
+async function handlePaymentFailed(invoice: any, supabase: any) {
+  console.log('=== HANDLING PAYMENT FAILED ===');
+  console.log('Invoice ID:', invoice.id);
+  console.log('Customer ID:', invoice.customer);
+  console.log('Subscription ID:', invoice.subscription);
+
+  if (!invoice.customer) {
+    console.log('No customer associated with failed payment');
+    return;
+  }
+
+  try {
+    // Find user by customer ID
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('stripe_customer_id', invoice.customer)
+      .single();
+
+    if (profileError || !profile) {
+      console.error('❌ Could not find user for customer:', invoice.customer);
+      return;
+    }
+
+    const userId = profile.id;
+    console.log('Found user for failed payment:', userId);
+
+    // Update subscription status to past_due
+    const { error } = await supabase
+      .from('subscriptions')
+      .update({
+        status: 'past_due',
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('❌ Error updating subscription for failed payment:', error);
+    } else {
+      console.log(`✅ Updated subscription to past_due for user ${userId}`);
+    }
+
+  } catch (error: any) {
+    console.error('❌ Error in handlePaymentFailed:', error);
+    throw error;
+  }
+}
+
 async function upsertSubscription(userId: string, tier: string, subscription: any, supabase: any) {
   console.log('=== UPSERTING SUBSCRIPTION ===');
   console.log('User ID:', userId);
@@ -243,15 +359,26 @@ async function upsertSubscription(userId: string, tier: string, subscription: an
       throw selectError;
     }
 
+    // Calculate billing period dates
+    const currentPeriodStart = subscription.current_period_start 
+      ? new Date(subscription.current_period_start * 1000).toISOString()
+      : new Date().toISOString();
+    
+    const currentPeriodEnd = subscription.current_period_end 
+      ? new Date(subscription.current_period_end * 1000).toISOString()
+      : new Date(Date.now() + (30 * 24 * 60 * 60 * 1000)).toISOString(); // 30 days from now
+
     if (existingSubscription) {
       console.log('Updating existing subscription...');
-      // Update existing subscription (no created_at needed)
+      // Update existing subscription
       const updateData = {
         user_id: userId,
         tier: tier,
         status: subscription.status,
         stripe_subscription_id: subscription.id,
         stripe_customer_id: subscription.customer as string,
+        current_period_start: currentPeriodStart,
+        current_period_end: currentPeriodEnd,
         updated_at: new Date().toISOString()
       };
 
@@ -270,13 +397,15 @@ async function upsertSubscription(userId: string, tier: string, subscription: an
       }
     } else {
       console.log('Creating new subscription...');
-      // Create new subscription (with created_at)
+      // Create new subscription
       const insertData = {
         user_id: userId,
         tier: tier,
         status: subscription.status,
         stripe_subscription_id: subscription.id,
         stripe_customer_id: subscription.customer as string,
+        current_period_start: currentPeriodStart,
+        current_period_end: currentPeriodEnd,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
@@ -313,17 +442,19 @@ async function upsertSubscription(userId: string, tier: string, subscription: an
       }
     }
 
-    // Reset usage tracking for the new billing period
-    console.log('Resetting usage tracking...');
-    const { error: usageError } = await supabase
-      .from('usage_tracking')
-      .delete()
-      .eq('user_id', userId);
+    // Reset usage tracking for the new billing period (only if subscription is active)
+    if (subscription.status === 'active') {
+      console.log('Resetting usage tracking...');
+      const { error: usageError } = await supabase
+        .from('usage_tracking')
+        .delete()
+        .eq('user_id', userId);
 
-    if (usageError) {
-      console.error('⚠️ Error resetting usage tracking:', usageError);
-    } else {
-      console.log('✅ Reset usage tracking');
+      if (usageError) {
+        console.error('⚠️ Error resetting usage tracking:', usageError);
+      } else {
+        console.log('✅ Reset usage tracking');
+      }
     }
 
     console.log(`✅ Successfully processed subscription for user ${userId} with tier ${tier}`);
