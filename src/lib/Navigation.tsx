@@ -169,16 +169,7 @@ export default function Navigation() {
                 >
                   History
                 </Link>
-                <Link
-                  href="/settings"
-                  className={`transition-colors duration-200 ${
-                    pathname === '/settings' 
-                      ? 'text-white font-semibold' 
-                      : 'text-white/80 hover:text-white'
-                  }`}
-                >
-                  Settings
-                </Link>
+                
                 
                 {/* User Profile Dropdown */}
                 <div className="relative">
@@ -332,7 +323,18 @@ export default function Navigation() {
                     onClick={() => setIsMenuOpen(false)}
                   >
                     History
-                  </Link>                  
+                  </Link>
+                  <Link
+                    href="/settings"
+                    className={`block px-4 py-2 transition-colors duration-200 ${
+                      pathname === '/settings' 
+                        ? 'text-white bg-white/10' 
+                        : 'text-white/80 hover:text-white hover:bg-white/10'
+                    }`}
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Settings
+                  </Link>
                   <Link
                     href="/pricing"
                     className={`block px-4 py-2 transition-colors duration-200 ${
