@@ -43,7 +43,7 @@ export default function History() {
   const [selectedContent, setSelectedContent] = useState<ContentItem | null>(null);
   const [copiedPlatform, setCopiedPlatform] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [userTier, setUserTier] = useState<string>('trial'); // Add user tier tracking
+  const [userTier, setUserTier] = useState<string>('trial'); // Added user tier tracking
 
   // Redirect to auth if not logged in
   useEffect(() => {
@@ -52,7 +52,7 @@ export default function History() {
     }
   }, [user, loading, router]);
 
-  // Fetch user tier and content history
+  // Fetch real data from Supabase (keeping original working structure)
   useEffect(() => {
     const fetchContentHistory = async () => {
       if (!user) return;
@@ -61,7 +61,7 @@ export default function History() {
         setIsLoading(true);
         const supabase = createClient();
 
-        // Fetch user tier from profile
+        // Fetch user tier from profile (NEW)
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('subscription_tier')
@@ -74,7 +74,7 @@ export default function History() {
           setUserTier(profileData?.subscription_tier || 'trial');
         }
 
-        // Fetch content with platform content
+        // Fetch content with platform content (ORIGINAL WORKING QUERY)
         const { data: contentData, error: contentError } = await supabase
           .from('content')
           .select(`
@@ -101,7 +101,7 @@ export default function History() {
           return;
         }
 
-        // Transform the data to match our interface
+        // Transform the data to match our interface (ORIGINAL WORKING LOGIC)
         const transformedContent: ContentItem[] = (contentData || []).map(item => {
           const platformContent: { [key: string]: string } = {};
           const hashtags: { [key: string]: string[] } = {};
@@ -161,15 +161,14 @@ export default function History() {
     return null;
   }
 
-  // Check if user has Pro+ access for transcript viewing
+  // Check if user has Pro+ access for transcript viewing (NEW)
   const isProPlus = ['pro', 'business', 'enterprise'].includes(userTier.toLowerCase());
 
-  // Helper function to check if content is video
+  // Helper function to check if content is video (NEW)
   const isVideoContent = (item: ContentItem) => {
     return item.file_type && ['video/mp4', 'video/mov', 'video/avi', 'video/quicktime'].includes(item.file_type.toLowerCase());
   };
 
-  // Filter and sort content
   const filteredContent = content
     .filter(item => {
       const matchesSearch = item.original_content.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -185,7 +184,6 @@ export default function History() {
       }
     });
 
-  // Helper functions
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -378,7 +376,7 @@ export default function History() {
                 const typeConfig = getContentTypeConfig(item.content_type);
                 const isExpanded = selectedContent?.id === item.id;
                 const platformCount = item.platforms_generated?.length || 0;
-                const hasVideoTranscript = isVideoContent(item) && item.original_transcript && isProPlus;
+                const hasVideoTranscript = isVideoContent(item) && item.original_transcript && isProPlus; // NEW
                 
                 return (
                   <div key={item.id} className="group relative">
@@ -397,6 +395,7 @@ export default function History() {
                                 <span className={`bg-gradient-to-r ${typeConfig.gradient} bg-clip-text text-transparent font-bold text-lg`}>
                                   {formatContentType(item.content_type)}
                                 </span>
+                                {/* NEW: Video + Transcript badge */}
                                 {hasVideoTranscript && (
                                   <div className="flex items-center gap-1 bg-gradient-to-r from-emerald-500/20 to-blue-500/20 border border-emerald-500/30 rounded-full px-3 py-1">
                                     <span className="text-emerald-400 text-xs">🎬</span>
@@ -429,7 +428,7 @@ export default function History() {
                       {isExpanded && (
                         <div className="border-t border-slate-700/50 pt-8 mt-8 space-y-8">
                           
-                          {/* Video Transcript Section (Pro+ users only) */}
+                          {/* NEW: Video Transcript Section (Pro+ users only) */}
                           {hasVideoTranscript && (
                             <div>
                               <div className="flex items-center gap-3 mb-6">
@@ -556,7 +555,7 @@ export default function History() {
               })}
             </div>
           ) : (
-           <div className="group relative">
+            <div className="group relative">
               <div className="absolute -inset-1 bg-gradient-to-r from-slate-600 to-slate-500 rounded-2xl blur opacity-25"></div>
               <div className="relative bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 p-16 rounded-xl text-center">
                 <div className="w-24 h-24 bg-gradient-to-r from-slate-600 to-slate-500 rounded-3xl flex items-center justify-center mx-auto mb-8">
@@ -585,4 +584,4 @@ export default function History() {
       </div>
     </div>
   );
-} 
+}
