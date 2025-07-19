@@ -11,6 +11,7 @@ interface UserSubscription {
   status: string | null;
   current_period_end: string | null;
   jobs_used_this_month: number;
+  cancel_at_period_end?: boolean;
 }
 
 export default function BillingPage() {
@@ -21,9 +22,12 @@ export default function BillingPage() {
     tier: null,
     status: null,
     current_period_end: null,
-    jobs_used_this_month: 0
+    jobs_used_this_month: 0,
+    cancel_at_period_end: false
   });
   const [loadingSubscription, setLoadingSubscription] = useState(true);
+  const [cancellingSubscription, setCancellingSubscription] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   // Redirect to auth if not logged in
   useEffect(() => {
@@ -55,7 +59,8 @@ export default function BillingPage() {
         tier: data.tier,
         status: data.status,
         current_period_end: data.subscription.current_period_end,
-        jobs_used_this_month: data.usage.jobsUsed
+        jobs_used_this_month: data.usage.jobsUsed,
+        cancel_at_period_end: data.subscription.cancel_at_period_end || false
       });
     } catch (error) {
       console.error('Error fetching subscription:', error);
@@ -64,7 +69,8 @@ export default function BillingPage() {
         tier: 'trial',
         status: 'active',
         current_period_end: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        jobs_used_this_month: 0
+        jobs_used_this_month: 0,
+        cancel_at_period_end: false
       });
     } finally {
       setLoadingSubscription(false);
@@ -97,6 +103,46 @@ export default function BillingPage() {
     } catch (error) {
       console.error('Subscription error:', error);
       alert('Failed to start subscription. Please try again.');
+    }
+  };
+
+  const handleCancelSubscription = async () => {
+    if (!user || !subscription.tier || subscription.tier === 'trial') return;
+
+    setCancellingSubscription(true);
+    
+    try {
+      const response = await fetch('/api/cancel-subscription', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.id,
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        // Update local state to reflect cancellation
+        setSubscription(prev => ({
+          ...prev,
+          cancel_at_period_end: true
+        }));
+        
+        setShowCancelConfirm(false);
+        
+        // Show success message with access until date
+        alert(`Subscription canceled successfully. You'll continue to have access until ${new Date(data.access_until).toLocaleDateString()}.`);
+      } else {
+        throw new Error(data.error || 'Failed to cancel subscription');
+      }
+    } catch (error) {
+      console.error('Cancel subscription error:', error);
+      alert('Failed to cancel subscription. Please try again or contact support.');
+    } finally {
+      setCancellingSubscription(false);
     }
   };
 
@@ -167,10 +213,13 @@ export default function BillingPage() {
   const jobsRemaining = currentTierInfo.jobLimit === -1 ? -1 : Math.max(0, currentTierInfo.jobLimit - subscription.jobs_used_this_month);
   const usagePercentage = currentTierInfo.jobLimit > 0 ? (subscription.jobs_used_this_month / currentTierInfo.jobLimit) * 100 : 0;
 
-  // Calculate days remaining for trial
+  // Calculate days remaining for trial or subscription period
   const daysRemaining = subscription.current_period_end 
     ? Math.max(0, Math.ceil((new Date(subscription.current_period_end).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
     : 0;
+
+  const isPaidPlan = subscription.tier && subscription.tier !== 'trial';
+  const isSubscriptionCanceled = subscription.cancel_at_period_end;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
@@ -239,12 +288,37 @@ export default function BillingPage() {
               <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-semibold text-white">Current Plan</h2>
-                  <div className="px-3 py-1 bg-gradient-to-r from-emerald-500/20 to-blue-500/20 border border-emerald-500/30 rounded-full">
-                    <span className="text-emerald-300 text-sm font-medium">
-                      {currentTierInfo.name}
-                    </span>
+                  <div className="flex items-center gap-3">
+                    <div className="px-3 py-1 bg-gradient-to-r from-emerald-500/20 to-blue-500/20 border border-emerald-500/30 rounded-full">
+                      <span className="text-emerald-300 text-sm font-medium">
+                        {currentTierInfo.name}
+                      </span>
+                    </div>
+                    {isSubscriptionCanceled && (
+                      <div className="px-3 py-1 bg-gradient-to-r from-orange-500/20 to-red-500/20 border border-orange-500/30 rounded-full">
+                        <span className="text-orange-300 text-sm font-medium">
+                          Canceled
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
+
+                {/* Cancellation Notice */}
+                {isSubscriptionCanceled && (
+                  <div className="mb-4 p-4 bg-orange-500/10 border border-orange-500/30 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <span className="text-orange-400">⚠️</span>
+                      <div>
+                        <p className="text-orange-300 font-medium">Subscription Canceled</p>
+                        <p className="text-orange-200 text-sm">
+                          You'll continue to have access until {subscription.current_period_end ? new Date(subscription.current_period_end).toLocaleDateString() : 'the end of your billing period'}.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-white mb-1">
@@ -254,10 +328,10 @@ export default function BillingPage() {
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-white mb-1">
-                      {subscription.tier === 'trial' ? daysRemaining : '∞'}
+                      {subscription.tier === 'trial' ? daysRemaining : (isSubscriptionCanceled ? daysRemaining : '∞')}
                     </div>
                     <div className="text-slate-300 text-sm">
-                      {subscription.tier === 'trial' ? 'Days Left' : 'Active'}
+                      {subscription.tier === 'trial' ? 'Days Left' : (isSubscriptionCanceled ? 'Days Until Expiry' : 'Active')}
                     </div>
                   </div>
                   <div className="text-center">
@@ -267,6 +341,24 @@ export default function BillingPage() {
                     <div className="text-slate-300 text-sm">Monthly Cost</div>
                   </div>
                 </div>
+
+                {/* Cancel Subscription Button */}
+                {isPaidPlan && !isSubscriptionCanceled && (
+                  <div className="mt-6 pt-6 border-t border-slate-700/50">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-white font-medium">Subscription Management</h3>
+                        <p className="text-slate-300 text-sm">Cancel your subscription anytime. You'll keep access until your billing period ends.</p>
+                      </div>
+                      <button
+                        onClick={() => setShowCancelConfirm(true)}
+                        className="bg-slate-700/50 hover:bg-red-500/20 border border-slate-600/50 hover:border-red-500/50 text-slate-300 hover:text-red-300 font-medium py-2 px-4 rounded-lg transition-all duration-300"
+                      >
+                        Cancel Subscription
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Usage Statistics */}
@@ -464,6 +556,33 @@ export default function BillingPage() {
 
         </div>
       </div>
+
+      {/* Cancel Confirmation Modal */}
+      {showCancelConfirm && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 max-w-md w-full">
+            <h3 className="text-xl font-semibold text-white mb-4">Cancel Subscription</h3>
+            <p className="text-slate-300 mb-6">
+              Are you sure you want to cancel your subscription? You'll continue to have access until the end of your current billing period.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowCancelConfirm(false)}
+                className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+              >
+                Keep Subscription
+              </button>
+              <button
+                onClick={handleCancelSubscription}
+                disabled={cancellingSubscription}
+                className="flex-1 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+              >
+                {cancellingSubscription ? 'Canceling...' : 'Yes, Cancel'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

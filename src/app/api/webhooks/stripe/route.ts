@@ -192,6 +192,7 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription, supa
   console.log('=== HANDLING SUBSCRIPTION UPDATED ===');
   console.log('Subscription ID:', subscription.id);
   console.log('Status:', subscription.status);
+  console.log('Cancel at period end:', subscription.cancel_at_period_end);
 
   const userId = subscription.metadata?.userId;
   const tier = subscription.metadata?.tier;
@@ -201,12 +202,21 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription, supa
     return;
   }
 
-  await upsertSubscription(userId, tier, subscription, supabase);
+  // If subscription is canceled but cancel_at_period_end is true,
+  // keep it active until the period ends
+  let effectiveStatus = subscription.status;
+  if (subscription.cancel_at_period_end && subscription.status === 'active') {
+    effectiveStatus = 'active'; // Keep active until period end
+    console.log('Subscription canceled but keeping active until period end');
+  }
+
+  await upsertSubscription(userId, tier, subscription, supabase, effectiveStatus);
 }
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription, supabase: any) {
   console.log('=== HANDLING SUBSCRIPTION DELETED ===');
   console.log('Subscription ID:', subscription.id);
+  console.log('This means the subscription has truly ended - period expired');
 
   const userId = subscription.metadata?.userId;
   
@@ -216,7 +226,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription, supa
   }
 
   try {
-    // Cancel subscription in database
+    // Now actually cancel subscription access (period has ended)
     const { error } = await supabase
       .from('subscriptions')
       .update({
@@ -228,7 +238,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription, supa
     if (error) {
       console.error('❌ Error canceling subscription:', error);
     } else {
-      console.log(`✅ Successfully canceled subscription for user ${userId}`);
+      console.log(`✅ Successfully canceled subscription for user ${userId} - billing period ended`);
     }
   } catch (error: any) {
     console.error('❌ Error in handleSubscriptionDeleted:', error);
@@ -339,11 +349,13 @@ async function handlePaymentFailed(invoice: any, supabase: any) {
   }
 }
 
-async function upsertSubscription(userId: string, tier: string, subscription: any, supabase: any) {
+async function upsertSubscription(userId: string, tier: string, subscription: any, supabase: any, overrideStatus?: string) {
   console.log('=== UPSERTING SUBSCRIPTION ===');
   console.log('User ID:', userId);
   console.log('Tier:', tier);
   console.log('Subscription status:', subscription.status);
+  console.log('Override status:', overrideStatus);
+  console.log('Cancel at period end:', subscription.cancel_at_period_end);
 
   try {
     // Check if subscription already exists first
@@ -358,6 +370,9 @@ async function upsertSubscription(userId: string, tier: string, subscription: an
       console.error('❌ Error checking existing subscription:', selectError);
       throw selectError;
     }
+
+    // Use override status if provided, otherwise use subscription status
+    const finalStatus = overrideStatus || subscription.status;
 
     // Calculate billing period dates
     const currentPeriodStart = subscription.current_period_start 
@@ -374,11 +389,12 @@ async function upsertSubscription(userId: string, tier: string, subscription: an
       const updateData = {
         user_id: userId,
         tier: tier,
-        status: subscription.status,
+        status: finalStatus,
         stripe_subscription_id: subscription.id,
         stripe_customer_id: subscription.customer as string,
         current_period_start: currentPeriodStart,
         current_period_end: currentPeriodEnd,
+        cancel_at_period_end: subscription.cancel_at_period_end || false,
         updated_at: new Date().toISOString()
       };
 
@@ -393,7 +409,7 @@ async function upsertSubscription(userId: string, tier: string, subscription: an
         console.error('❌ Error updating subscription:', error);
         throw error;
       } else {
-        console.log(`✅ Updated subscription for user ${userId} to ${tier}`);
+        console.log(`✅ Updated subscription for user ${userId} to ${tier} (status: ${finalStatus})`);
       }
     } else {
       console.log('Creating new subscription...');
@@ -401,11 +417,12 @@ async function upsertSubscription(userId: string, tier: string, subscription: an
       const insertData = {
         user_id: userId,
         tier: tier,
-        status: subscription.status,
+        status: finalStatus,
         stripe_subscription_id: subscription.id,
         stripe_customer_id: subscription.customer as string,
         current_period_start: currentPeriodStart,
         current_period_end: currentPeriodEnd,
+        cancel_at_period_end: subscription.cancel_at_period_end || false,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
@@ -420,7 +437,7 @@ async function upsertSubscription(userId: string, tier: string, subscription: an
         console.error('❌ Error creating subscription:', error);
         throw error;
       } else {
-        console.log(`✅ Created new subscription for user ${userId} with tier ${tier}`);
+        console.log(`✅ Created new subscription for user ${userId} with tier ${tier} (status: ${finalStatus})`);
       }
     }
 
@@ -443,7 +460,7 @@ async function upsertSubscription(userId: string, tier: string, subscription: an
     }
 
     // Reset usage tracking for the new billing period (only if subscription is active)
-    if (subscription.status === 'active') {
+    if (finalStatus === 'active') {
       console.log('Resetting usage tracking...');
       const { error: usageError } = await supabase
         .from('usage_tracking')
