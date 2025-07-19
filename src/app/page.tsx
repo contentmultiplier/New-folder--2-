@@ -136,7 +136,7 @@ export default function Home() {
                     <div key={index} className="w-8 h-8 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full border-2 border-slate-900"></div>
                   ))}
                 </div>
-                <span className="text-sm">1,000+ creators</span>
+                <span className="text-sm">25,000+ creators</span>
               </div>
               <div className="text-sm">⭐⭐⭐⭐⭐ 4.9/5 rating</div>
               <div className="text-sm">🏆 #1 Content Tool 2024</div>
@@ -260,24 +260,34 @@ export default function Home() {
       </section>
 
       {/* Stats Section */}
+      {/* Stats Section */}
       <section className="py-24 bg-gradient-to-r from-slate-900 to-slate-800">
         <div className="container mx-auto px-6">
-          <div className="grid md:grid-cols-4 gap-8 text-center">
+          <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-8 text-center">
             <div className="group">
               <div className="text-5xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">15+</div>
               <div className="text-slate-300 text-lg">Hours Saved Weekly</div>
+              <div className="text-slate-400 text-sm mt-1">Per Creator</div>
             </div>
             <div className="group">
-              <div className="text-5xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-2">1000+</div>
+              <div className="text-5xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-2">25K+</div>
               <div className="text-slate-300 text-lg">Active Creators</div>
+              <div className="text-slate-400 text-sm mt-1">Worldwide</div>
             </div>
             <div className="group">
-              <div className="text-5xl font-bold bg-gradient-to-r from-pink-400 to-red-400 bg-clip-text text-transparent mb-2">50K+</div>
-              <div className="text-slate-300 text-lg">Content Pieces Created</div>
+              <div className="text-4xl font-bold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent mb-2">375K+</div>
+              <div className="text-slate-300 text-lg">Hours Saved Weekly</div>
+              <div className="text-slate-400 text-sm mt-1">Total Impact</div>
             </div>
             <div className="group">
-              <div className="text-5xl font-bold bg-gradient-to-r from-emerald-400 to-blue-400 bg-clip-text text-transparent mb-2">99%</div>
-              <div className="text-slate-300 text-lg">Customer Satisfaction</div>
+              <div className="text-5xl font-bold bg-gradient-to-r from-pink-400 to-red-400 bg-clip-text text-transparent mb-2">150K+</div>
+              <div className="text-slate-300 text-lg">Content Pieces</div>
+              <div className="text-slate-400 text-sm mt-1">Created</div>
+            </div>
+            <div className="group">
+              <div className="text-5xl font-bold bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent mb-2">99%</div>
+              <div className="text-slate-300 text-lg">Customer</div>
+              <div className="text-slate-300 text-lg">Satisfaction</div>
             </div>
           </div>
         </div>
