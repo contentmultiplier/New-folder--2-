@@ -220,7 +220,7 @@ export default function Navigation() {
                           Account Settings
                         </Link>
                         <Link
-                          href="/pricing"
+                          href="/billing"
                           className="block px-4 py-2 text-sm text-white/80 hover:text-white hover:bg-white/10 transition-colors duration-200"
                           onClick={() => setIsMenuOpen(false)}
                         >
@@ -332,18 +332,7 @@ export default function Navigation() {
                     onClick={() => setIsMenuOpen(false)}
                   >
                     History
-                  </Link>
-                  <Link
-                    href="/settings"
-                    className={`block px-4 py-2 transition-colors duration-200 ${
-                      pathname === '/settings' 
-                        ? 'text-white bg-white/10' 
-                        : 'text-white/80 hover:text-white hover:bg-white/10'
-                    }`}
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    Settings
-                  </Link>
+                  </Link>                  
                   <Link
                     href="/pricing"
                     className={`block px-4 py-2 transition-colors duration-200 ${
