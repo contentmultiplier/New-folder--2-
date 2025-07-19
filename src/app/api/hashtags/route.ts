@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate platforms (optional parameter)
-    const validPlatforms = ['twitter', 'linkedin', 'instagram', 'facebook', 'youtube'];
+    const validPlatforms = ['twitter', 'linkedin', 'instagram', 'facebook', 'youtube', 'tiktok'];
     const targetPlatforms = platforms && Array.isArray(platforms) 
       ? platforms.filter(p => validPlatforms.includes(p))
       : validPlatforms;

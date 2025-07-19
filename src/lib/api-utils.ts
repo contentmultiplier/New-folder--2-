@@ -1,5 +1,5 @@
 // ContentMux API Utility Functions
-// Complete file with AssemblyAI integration for URL-based transcription
+// Complete file with AssemblyAI integration and TikTok support
 
 import Anthropic from '@anthropic-ai/sdk';
 import { AssemblyAI } from 'assemblyai';
@@ -18,13 +18,14 @@ const assemblyAI = new AssemblyAI({
   apiKey: process.env.ASSEMBLYAI_API_KEY!,
 });
 
-// Types for our API responses
+// Types for our API responses - Updated with TikTok support
 export interface ContentRepurposeResult {
   twitter: string;
   linkedin: string;
   instagram: string;
   facebook: string;
   youtube: string;
+  tiktok: string;
 }
 
 export interface HashtagResult {
@@ -33,6 +34,7 @@ export interface HashtagResult {
   instagram: string[];
   facebook: string[];
   youtube: string[];
+  tiktok: string[];
 }
 
 export interface TranscriptionResult {
@@ -44,7 +46,7 @@ export interface TranscriptionResult {
   words?: number;
 }
 
-// 1. CLAUDE CONTENT REPURPOSING
+// 1. CLAUDE CONTENT REPURPOSING - Updated with TikTok
 export async function repurposeContent(originalContent: string): Promise<ContentRepurposeResult> {
   let message: any = null;
   
@@ -54,15 +56,24 @@ export async function repurposeContent(originalContent: string): Promise<Content
       max_tokens: 2000,
       messages: [{
         role: 'user',
-        content: `Transform this content into 5 platform-optimized versions. Return ONLY a JSON object with this exact structure:
+        content: `Transform this content into 6 platform-optimized versions. Return ONLY a JSON object with this exact structure:
 
 {
   "twitter": "Twitter version (280 chars max, engaging, hashtag-friendly)",
   "linkedin": "LinkedIn version (professional, industry insights, 1-3 paragraphs)",
   "instagram": "Instagram version (visual storytelling, engaging captions)",
   "facebook": "Facebook version (community-focused, conversational)",
-  "youtube": "YouTube version (video description, timestamps, call-to-action)"
+  "youtube": "YouTube version (video description, timestamps, call-to-action)",
+  "tiktok": "TikTok version (short, punchy, trend-focused, engaging hook)"
 }
+
+Platform-specific requirements:
+- Twitter: Concise, viral potential, trending topics
+- LinkedIn: Professional tone, industry insights, thought leadership
+- Instagram: Visual storytelling, engaging captions, lifestyle focus
+- Facebook: Community-driven, conversational, shareable
+- YouTube: Detailed descriptions, SEO-optimized, clear value proposition
+- TikTok: Short-form, trending, hook-focused, Gen Z friendly
 
 Original content: ${originalContent}`
       }]
@@ -87,7 +98,7 @@ Original content: ${originalContent}`
   }
 }
 
-// 2. CLAUDE HASHTAG RESEARCH
+// 2. CLAUDE HASHTAG RESEARCH - Updated with TikTok
 export async function generateHashtags(content: string, platforms: string[]): Promise<HashtagResult> {
   let message: any = null;
   
@@ -104,15 +115,17 @@ export async function generateHashtags(content: string, platforms: string[]): Pr
   "linkedin": ["#hashtag1", "#hashtag2", "#hashtag3"],
   "instagram": ["#hashtag1", "#hashtag2", "#hashtag3"],
   "facebook": ["#hashtag1", "#hashtag2", "#hashtag3"],
-  "youtube": ["#hashtag1", "#hashtag2", "#hashtag3"]
+  "youtube": ["#hashtag1", "#hashtag2", "#hashtag3"],
+  "tiktok": ["#hashtag1", "#hashtag2", "#hashtag3"]
 }
 
-Requirements:
-- Twitter: 3-5 trending, viral-friendly hashtags
-- LinkedIn: 3-5 professional, industry-specific hashtags
-- Instagram: 5-10 discovery-optimized hashtags
-- Facebook: 2-3 community-focused hashtags
-- YouTube: 3-5 searchable, niche-specific hashtags
+Platform-specific requirements:
+- Twitter: 3-5 trending, viral-friendly hashtags, current events focus
+- LinkedIn: 3-5 professional, industry-specific hashtags, thought leadership
+- Instagram: 5-10 discovery-optimized hashtags, lifestyle and visual content
+- Facebook: 2-3 community-focused hashtags, local and interest-based
+- YouTube: 3-5 searchable, niche-specific hashtags, SEO-optimized
+- TikTok: 3-8 trending hashtags, Gen Z culture, viral potential, dance/music trends
 
 Content: ${content}`
       }]
@@ -225,7 +238,7 @@ export async function transcribeAudioFile(audioFile: File): Promise<Transcriptio
   }
 }
 
-// 5. COMPLETE WORKFLOW: URL/File → Text → Repurposed Content → Hashtags
+// 5. COMPLETE WORKFLOW: URL/File → Text → Repurposed Content → Hashtags - Updated with TikTok
 export async function processCompleteWorkflow(
   input: string | File,
   generateHashtagsFlag: boolean = true
@@ -265,10 +278,10 @@ export async function processCompleteWorkflow(
     // Step 2: Repurpose content
     const repurposedContent = await repurposeContent(originalText);
 
-    // Step 3: Generate hashtags (optional)
+    // Step 3: Generate hashtags (optional) - Updated with TikTok
     let hashtags: HashtagResult | undefined;
     if (generateHashtagsFlag) {
-      hashtags = await generateHashtags(originalText, ['twitter', 'linkedin', 'instagram', 'facebook', 'youtube']);
+      hashtags = await generateHashtags(originalText, ['twitter', 'linkedin', 'instagram', 'facebook', 'youtube', 'tiktok']);
     }
 
     return {

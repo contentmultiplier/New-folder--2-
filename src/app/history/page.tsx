@@ -12,6 +12,8 @@ interface ContentItem {
   content_type: string;
   created_at: string;
   platforms_generated: string[];
+  file_type?: string;
+  original_transcript?: string; // Added for video transcripts
   platform_content?: {
     [key: string]: string;
   };
@@ -41,6 +43,7 @@ export default function History() {
   const [selectedContent, setSelectedContent] = useState<ContentItem | null>(null);
   const [copiedPlatform, setCopiedPlatform] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [userTier, setUserTier] = useState<string>('trial'); // Add user tier tracking
 
   // Redirect to auth if not logged in
   useEffect(() => {
@@ -49,7 +52,7 @@ export default function History() {
     }
   }, [user, loading, router]);
 
-  // Fetch real data from Supabase
+  // Fetch user tier and content history
   useEffect(() => {
     const fetchContentHistory = async () => {
       if (!user) return;
@@ -57,6 +60,19 @@ export default function History() {
       try {
         setIsLoading(true);
         const supabase = createClient();
+
+        // Fetch user tier from profile
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('subscription_tier')
+          .eq('id', user.id)
+          .single();
+
+        if (profileError) {
+          console.error('Error fetching profile:', profileError);
+        } else {
+          setUserTier(profileData?.subscription_tier || 'trial');
+        }
 
         // Fetch content with platform content
         const { data: contentData, error: contentError } = await supabase
@@ -67,6 +83,8 @@ export default function History() {
             content_type,
             created_at,
             platforms_generated,
+            file_type,
+            original_transcript,
             platform_content (
               id,
               content_id,
@@ -104,6 +122,8 @@ export default function History() {
             content_type: item.content_type,
             created_at: item.created_at,
             platforms_generated: item.platforms_generated || [],
+            file_type: item.file_type,
+            original_transcript: item.original_transcript,
             platform_content: platformContent,
             hashtags: hashtags
           };
@@ -141,6 +161,15 @@ export default function History() {
     return null;
   }
 
+  // Check if user has Pro+ access for transcript viewing
+  const isProPlus = ['pro', 'business', 'enterprise'].includes(userTier.toLowerCase());
+
+  // Helper function to check if content is video
+  const isVideoContent = (item: ContentItem) => {
+    return item.file_type && ['video/mp4', 'video/mov', 'video/avi', 'video/quicktime'].includes(item.file_type.toLowerCase());
+  };
+
+  // Filter and sort content
   const filteredContent = content
     .filter(item => {
       const matchesSearch = item.original_content.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -156,6 +185,7 @@ export default function History() {
       }
     });
 
+  // Helper functions
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -348,6 +378,7 @@ export default function History() {
                 const typeConfig = getContentTypeConfig(item.content_type);
                 const isExpanded = selectedContent?.id === item.id;
                 const platformCount = item.platforms_generated?.length || 0;
+                const hasVideoTranscript = isVideoContent(item) && item.original_transcript && isProPlus;
                 
                 return (
                   <div key={item.id} className="group relative">
@@ -362,9 +393,17 @@ export default function History() {
                               <span className="text-xl">{typeConfig.icon}</span>
                             </div>
                             <div>
-                              <span className={`bg-gradient-to-r ${typeConfig.gradient} bg-clip-text text-transparent font-bold text-lg`}>
-                                {formatContentType(item.content_type)}
-                              </span>
+                              <div className="flex items-center gap-3">
+                                <span className={`bg-gradient-to-r ${typeConfig.gradient} bg-clip-text text-transparent font-bold text-lg`}>
+                                  {formatContentType(item.content_type)}
+                                </span>
+                                {hasVideoTranscript && (
+                                  <div className="flex items-center gap-1 bg-gradient-to-r from-emerald-500/20 to-blue-500/20 border border-emerald-500/30 rounded-full px-3 py-1">
+                                    <span className="text-emerald-400 text-xs">🎬</span>
+                                    <span className="text-emerald-300 text-xs font-medium">Video + Transcript</span>
+                                  </div>
+                                )}
+                              </div>
                               <div className="text-slate-400 text-sm mt-1">
                                 Created {formatDate(item.created_at)} • {platformCount} platform{platformCount !== 1 ? 's' : ''}
                               </div>
@@ -381,81 +420,133 @@ export default function History() {
                         >
                           <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl blur opacity-75 group-hover:opacity-100 transition duration-300"></div>
                           <div className="relative bg-gradient-to-r from-blue-500 to-purple-500 text-white font-semibold px-6 py-3 rounded-lg hover:scale-105 transition duration-300">
-                            {isExpanded ? 'Hide Platforms' : 'View Platforms'}
+                            {isExpanded ? 'Hide Details' : 'View Details'}
                           </div>
                         </button>
                       </div>
 
-                      {/* Platform Content (Expandable) */}
+                      {/* Expanded Content */}
                       {isExpanded && (
-                        <div className="border-t border-slate-700/50 pt-8 mt-8">
-                          <div className="flex items-center gap-3 mb-8">
-                            <div className="w-8 h-8 bg-gradient-to-r from-emerald-500 to-blue-500 rounded-lg flex items-center justify-center">
-                              <span className="text-sm">🚀</span>
-                            </div>
-                            <h4 className="text-2xl font-bold text-white">Platform-Optimized Content</h4>
-                          </div>
+                        <div className="border-t border-slate-700/50 pt-8 mt-8 space-y-8">
                           
-                          {item.platforms_generated && item.platforms_generated.length > 0 ? (
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                              {item.platforms_generated.map((platform) => {
-                                const platformConfig = getPlatformConfig(platform);
-                                const content = item.platform_content?.[platform] || 'Content not available';
-                                const hashtags = item.hashtags?.[platform] || [];
-                                const isCopied = copiedPlatform === platform;
-                                
-                                return (
-                                  <div key={platform} className="group relative">
-                                    <div className={`absolute -inset-1 bg-gradient-to-r ${platformConfig.gradient} rounded-xl blur opacity-25 group-hover:opacity-50 transition duration-300`}></div>
-                                    <div className="relative bg-slate-700/30 border border-slate-600/50 rounded-lg p-6">
-                                      <div className="flex items-center justify-between mb-4">
-                                        <div className="flex items-center gap-3">
-                                          <div className={`w-10 h-10 bg-gradient-to-r ${platformConfig.gradient} rounded-xl flex items-center justify-center`}>
-                                            <span className="text-lg">{platformConfig.icon}</span>
-                                          </div>
-                                          <span className="text-white font-semibold text-lg">{platformConfig.name}</span>
-                                        </div>
-                                        <button
-                                          onClick={() => copyToClipboard(content, platform)}
-                                          className={`group relative transition-all duration-300 ${
-                                            isCopied ? 'scale-110' : 'hover:scale-105'
-                                          }`}
-                                        >
-                                          <div className={`absolute -inset-1 bg-gradient-to-r ${platformConfig.gradient} rounded-lg blur opacity-75 group-hover:opacity-100 transition duration-300`}></div>
-                                          <div className={`relative bg-gradient-to-r ${platformConfig.gradient} text-white font-semibold px-4 py-2 rounded-lg text-sm`}>
-                                            {isCopied ? '✅ Copied!' : '📋 Copy'}
-                                          </div>
-                                        </button>
+                          {/* Video Transcript Section (Pro+ users only) */}
+                          {hasVideoTranscript && (
+                            <div>
+                              <div className="flex items-center gap-3 mb-6">
+                                <div className="w-8 h-8 bg-gradient-to-r from-emerald-500 to-blue-500 rounded-lg flex items-center justify-center">
+                                  <span className="text-sm">🎬</span>
+                                </div>
+                                <h4 className="text-2xl font-bold text-white">Video Transcript</h4>
+                                <div className="flex items-center gap-2 bg-gradient-to-r from-emerald-500/20 to-blue-500/20 border border-emerald-500/30 rounded-full px-3 py-1">
+                                  <span className="text-emerald-400 text-xs">✨</span>
+                                  <span className="text-emerald-300 text-xs font-medium">Pro+ Feature</span>
+                                </div>
+                              </div>
+                              
+                              <div className="group relative mb-8">
+                                <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-blue-500 rounded-xl blur opacity-25 group-hover:opacity-50 transition duration-300"></div>
+                                <div className="relative bg-slate-700/30 border border-slate-600/50 rounded-lg p-6">
+                                  <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center gap-3">
+                                      <div className="w-10 h-10 bg-gradient-to-r from-emerald-500 to-blue-500 rounded-xl flex items-center justify-center">
+                                        <span className="text-lg">📝</span>
                                       </div>
-                                      
-                                      <div className="bg-slate-800/50 rounded-lg p-4 mb-4">
-                                        <p className="text-slate-200 leading-relaxed text-sm whitespace-pre-wrap">
-                                          {content}
-                                        </p>
-                                      </div>
-                                      
-                                      {hashtags.length > 0 && (
-                                        <div className="flex flex-wrap gap-2">
-                                          {hashtags.map((tag, tagIndex) => (
-                                            <div key={tagIndex} className="group relative">
-                                              <div className={`absolute -inset-0.5 bg-gradient-to-r ${platformConfig.gradient} rounded-full opacity-50`}></div>
-                                              <span className="relative bg-slate-800/80 text-white font-medium text-xs px-3 py-1.5 rounded-full border border-slate-600/50 hover:bg-slate-700/80 transition-all duration-200">
-                                                {tag}
-                                              </span>
-                                            </div>
-                                          ))}
-                                        </div>
-                                      )}
+                                      <span className="text-white font-semibold text-lg">Extracted Text</span>
                                     </div>
+                                    <button
+                                      onClick={() => copyToClipboard(item.original_transcript!, 'transcript')}
+                                      className={`group relative transition-all duration-300 ${
+                                        copiedPlatform === 'transcript' ? 'scale-110' : 'hover:scale-105'
+                                      }`}
+                                    >
+                                      <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-blue-500 rounded-lg blur opacity-75 group-hover:opacity-100 transition duration-300"></div>
+                                      <div className="relative bg-gradient-to-r from-emerald-500 to-blue-500 text-white font-semibold px-4 py-2 rounded-lg text-sm">
+                                        {copiedPlatform === 'transcript' ? '✅ Copied!' : '📋 Copy Transcript'}
+                                      </div>
+                                    </button>
                                   </div>
-                                );
-                              })}
-                            </div>
-                          ) : (
-                            <div className="text-center py-8">
-                              <p className="text-slate-400">No platform content available</p>
+                                  
+                                  <div className="bg-slate-800/50 rounded-lg p-4 max-h-64 overflow-y-auto">
+                                    <p className="text-slate-200 leading-relaxed text-sm whitespace-pre-wrap">
+                                      {item.original_transcript}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
                             </div>
                           )}
+
+                          {/* Platform Content Section */}
+                          <div>
+                            <div className="flex items-center gap-3 mb-8">
+                              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
+                                <span className="text-sm">🚀</span>
+                              </div>
+                              <h4 className="text-2xl font-bold text-white">Platform-Optimized Content</h4>
+                            </div>
+                            
+                            {item.platforms_generated && item.platforms_generated.length > 0 ? (
+                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                {item.platforms_generated.map((platform) => {
+                                  const platformConfig = getPlatformConfig(platform);
+                                  const content = item.platform_content?.[platform] || 'Content not available';
+                                  const hashtags = item.hashtags?.[platform] || [];
+                                  const isCopied = copiedPlatform === platform;
+                                  
+                                  return (
+                                    <div key={platform} className="group relative">
+                                      <div className={`absolute -inset-1 bg-gradient-to-r ${platformConfig.gradient} rounded-xl blur opacity-25 group-hover:opacity-50 transition duration-300`}></div>
+                                      <div className="relative bg-slate-700/30 border border-slate-600/50 rounded-lg p-6">
+                                        <div className="flex items-center justify-between mb-4">
+                                          <div className="flex items-center gap-3">
+                                            <div className={`w-10 h-10 bg-gradient-to-r ${platformConfig.gradient} rounded-xl flex items-center justify-center`}>
+                                              <span className="text-lg">{platformConfig.icon}</span>
+                                            </div>
+                                            <span className="text-white font-semibold text-lg">{platformConfig.name}</span>
+                                          </div>
+                                          <button
+                                            onClick={() => copyToClipboard(content, platform)}
+                                            className={`group relative transition-all duration-300 ${
+                                              isCopied ? 'scale-110' : 'hover:scale-105'
+                                            }`}
+                                          >
+                                            <div className={`absolute -inset-1 bg-gradient-to-r ${platformConfig.gradient} rounded-lg blur opacity-75 group-hover:opacity-100 transition duration-300`}></div>
+                                            <div className={`relative bg-gradient-to-r ${platformConfig.gradient} text-white font-semibold px-4 py-2 rounded-lg text-sm`}>
+                                              {isCopied ? '✅ Copied!' : '📋 Copy'}
+                                            </div>
+                                          </button>
+                                        </div>
+                                        
+                                        <div className="bg-slate-800/50 rounded-lg p-4 mb-4">
+                                          <p className="text-slate-200 leading-relaxed text-sm whitespace-pre-wrap">
+                                            {content}
+                                          </p>
+                                        </div>
+                                        
+                                        {hashtags.length > 0 && (
+                                          <div className="flex flex-wrap gap-2">
+                                            {hashtags.map((tag, tagIndex) => (
+                                              <div key={tagIndex} className="group relative">
+                                                <div className={`absolute -inset-0.5 bg-gradient-to-r ${platformConfig.gradient} rounded-full opacity-50`}></div>
+                                                <span className="relative bg-slate-800/80 text-white font-medium text-xs px-3 py-1.5 rounded-full border border-slate-600/50 hover:bg-slate-700/80 transition-all duration-200">
+                                                  {tag}
+                                                </span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <div className="text-center py-8">
+                                <p className="text-slate-400">No platform content available</p>
+                              </div>
+                            )}
+                          </div>
+
                         </div>
                       )}
 
@@ -465,7 +556,7 @@ export default function History() {
               })}
             </div>
           ) : (
-            <div className="group relative">
+           <div className="group relative">
               <div className="absolute -inset-1 bg-gradient-to-r from-slate-600 to-slate-500 rounded-2xl blur opacity-25"></div>
               <div className="relative bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 p-16 rounded-xl text-center">
                 <div className="w-24 h-24 bg-gradient-to-r from-slate-600 to-slate-500 rounded-3xl flex items-center justify-center mx-auto mb-8">
@@ -494,4 +585,4 @@ export default function History() {
       </div>
     </div>
   );
-}
+} 

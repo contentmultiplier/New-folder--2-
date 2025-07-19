@@ -76,44 +76,44 @@ export default function CreateContentPage() {
   }, [user, router]);
 
   // Fetch user tier and usage
-const fetchUserTier = async () => {
-  try {
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) return;
-
-    const response = await fetch(`/api/user-subscription?userId=${user.id}`);
-    const data = await response.json();
-    
-    if (response.ok) {
-      // Map the subscription data to our userTier format
-      const tierLimits = {
-        trial: { jobs: 3, platforms: ['linkedin', 'twitter'] },
-        basic: { jobs: 20, platforms: ['linkedin', 'twitter', 'facebook', 'instagram'] },
-        pro: { jobs: 100, platforms: ['linkedin', 'twitter', 'facebook', 'instagram', 'youtube'] },
-        business: { jobs: 500, platforms: ['linkedin', 'twitter', 'facebook', 'instagram', 'youtube', 'tiktok'] },
-        enterprise: { jobs: 999999, platforms: ['linkedin', 'twitter', 'facebook', 'instagram', 'youtube', 'tiktok'] },
-      };
-
-      const userTier = data.tier || 'trial';
-      const limits = tierLimits[userTier as keyof typeof tierLimits] || tierLimits.trial;
+  const fetchUserTier = async () => {
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
       
-      setUserTier({
-        tier: userTier,
-        jobsUsed: data.jobs_used_this_month || 0,
-        jobsLimit: limits.jobs,
-        platformAccess: limits.platforms
-      });
+      if (!user) return;
+
+      const response = await fetch(`/api/user-subscription?userId=${user.id}`);
+      const data = await response.json();
       
-      // Set default platforms
-      const availablePlatforms = limits.platforms;
-      setSelectedPlatforms(availablePlatforms.slice(0, Math.min(2, availablePlatforms.length)));
+      if (response.ok) {
+        // Map the subscription data to our userTier format
+        const tierLimits = {
+          trial: { jobs: 3, platforms: ['linkedin', 'twitter'] },
+          basic: { jobs: 20, platforms: ['linkedin', 'twitter', 'facebook', 'instagram'] },
+          pro: { jobs: 100, platforms: ['linkedin', 'twitter', 'facebook', 'instagram', 'youtube'] },
+          business: { jobs: 500, platforms: ['linkedin', 'twitter', 'facebook', 'instagram', 'youtube', 'tiktok'] },
+          enterprise: { jobs: 999999, platforms: ['linkedin', 'twitter', 'facebook', 'instagram', 'youtube', 'tiktok'] },
+        };
+
+        const userTier = data.tier || 'trial';
+        const limits = tierLimits[userTier as keyof typeof tierLimits] || tierLimits.trial;
+        
+        setUserTier({
+          tier: userTier,
+          jobsUsed: data.jobs_used_this_month || 0,
+          jobsLimit: limits.jobs,
+          platformAccess: limits.platforms
+        });
+        
+        // Set default platforms
+        const availablePlatforms = limits.platforms;
+        setSelectedPlatforms(availablePlatforms.slice(0, Math.min(2, availablePlatforms.length)));
+      }
+    } catch (error) {
+      console.error('Error fetching user tier:', error);
     }
-  } catch (error) {
-    console.error('Error fetching user tier:', error);
-  }
-};
+  };
 
   // Helper function to get max platforms for tier
   const getMaxPlatformsForTier = (tier: string) => {
@@ -135,6 +135,11 @@ const fetchUserTier = async () => {
   // Check if platform is available for user's tier
   const isPlatformAvailable = (platform: string) => {
     return userTier.platformAccess.includes(platform);
+  };
+
+  // Check if file upload is allowed for user's tier
+  const canUseFileUpload = () => {
+    return ['pro', 'business', 'enterprise'].includes(userTier.tier);
   };
 
   // Toggle platform selection
@@ -275,68 +280,68 @@ const fetchUserTier = async () => {
   };
 
   // Content processing
-const processContentWithAI = async (content: string) => {
-  addProgress('generate', 'processing', 'Generating optimized content...');
-  
-  try {
-    const res = await fetch('/api/process', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        text: content,
-        platforms: selectedPlatforms,
-        contentType
-      }),
-    });
-    
-    if (!res.ok) {
-      throw new Error('Failed to process content. Please try again.');
-    }
-    
-    const data = await res.json();
-    addProgress('generate', 'completed', 'Content generated successfully');
-    
-    // Save content to database
-    addProgress('save', 'processing', 'Saving content to your library...');
+  const processContentWithAI = async (content: string) => {
+    addProgress('generate', 'processing', 'Generating optimized content...');
     
     try {
-      const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/process', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          text: content,
+          platforms: selectedPlatforms,
+          contentType
+        }),
+      });
       
-      if (session?.access_token) {
-        const saveRes = await fetch('/api/save-content', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`
-          },
-          body: JSON.stringify({
-            originalContent: content,
-            contentType: contentType,
-            selectedPlatforms: selectedPlatforms,
-            platformContent: data.data.repurposedContent,
-            hashtags: data.data.hashtags || {},
-            fileName: selectedFile?.name || null,
-            fileType: selectedFile?.type || null
-          }),
-        });
-        
-        if (saveRes.ok) {
-          addProgress('save', 'completed', 'Content saved to your library');
-        } else {
-          addProgress('save', 'error', 'Failed to save content');
-        }
+      if (!res.ok) {
+        throw new Error('Failed to process content. Please try again.');
       }
-    } catch (saveError) {
-      console.error('Save error:', saveError);
-      addProgress('save', 'error', 'Failed to save content');
+      
+      const data = await res.json();
+      addProgress('generate', 'completed', 'Content generated successfully');
+      
+      // Save content to database
+      addProgress('save', 'processing', 'Saving content to your library...');
+      
+      try {
+        const supabase = createClient();
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session?.access_token) {
+          const saveRes = await fetch('/api/save-content', {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify({
+              originalContent: content,
+              contentType: contentType,
+              selectedPlatforms: selectedPlatforms,
+              platformContent: data.data.repurposedContent,
+              hashtags: data.data.hashtags || {},
+              fileName: selectedFile?.name || null,
+              fileType: selectedFile?.type || null
+            }),
+          });
+          
+          if (saveRes.ok) {
+            addProgress('save', 'completed', 'Content saved to your library');
+          } else {
+            addProgress('save', 'error', 'Failed to save content');
+          }
+        }
+      } catch (saveError) {
+        console.error('Save error:', saveError);
+        addProgress('save', 'error', 'Failed to save content');
+      }
+      
+      return data;
+    } catch (error: any) {
+      throw new Error(error.message);
     }
-    
-    return data;
-  } catch (error: any) {
-    throw new Error(error.message);
-  }
-};
+  };
 
   // Main processing function
   const handleProcess = async () => {
@@ -654,7 +659,7 @@ const processContentWithAI = async (content: string) => {
             </div>
           </div>
 
-          {/* Tab Navigation */}
+          {/* Tab Navigation - Updated with file upload restrictions */}
           <div className="flex gap-4 mb-6">
             <button
               onClick={() => {setSelectedTab('text'); resetProgress();}}
@@ -668,19 +673,93 @@ const processContentWithAI = async (content: string) => {
               <span className="text-xl">📝</span>
               Text Content
             </button>
-            <button
-              onClick={() => {setSelectedTab('file'); resetProgress();}}
-              disabled={processing}
-              className={`flex items-center gap-3 px-6 py-3 rounded-xl font-medium transition-all duration-300 ${
-                selectedTab === 'file' 
-                  ? 'bg-purple-500/20 text-purple-300 ring-2 ring-purple-400' 
-                  : 'text-slate-400 hover:text-white hover:bg-slate-700/30'
-              }`}
-            >
-              <span className="text-xl">📁</span>
-              File Upload
-            </button>
+            
+            <div className="relative">
+              <button
+                onClick={() => {
+                  if (canUseFileUpload()) {
+                    setSelectedTab('file'); 
+                    resetProgress();
+                  }
+                }}
+                disabled={processing || !canUseFileUpload()}
+                className={`flex items-center gap-3 px-6 py-3 rounded-xl font-medium transition-all duration-300 ${
+                  !canUseFileUpload()
+                    ? 'opacity-50 cursor-not-allowed text-slate-500'
+                    : selectedTab === 'file' 
+                      ? 'bg-purple-500/20 text-purple-300 ring-2 ring-purple-400' 
+                      : 'text-slate-400 hover:text-white hover:bg-slate-700/30'
+                }`}
+              >
+                <span className="text-xl">📁</span>
+                File Upload
+                {!canUseFileUpload() && (
+                  <span className="text-xs bg-orange-500/20 text-orange-300 px-2 py-1 rounded-full ml-2">
+                    Pro+
+                  </span>
+                )}
+              </button>
+              
+              {/* Tooltip for locked feature */}
+              {!canUseFileUpload() && (
+                <div className="absolute top-full left-0 mt-2 p-3 bg-slate-800 border border-slate-600 rounded-lg text-sm text-slate-300 min-w-64 z-10 opacity-0 hover:opacity-100 transition-opacity">
+                  <p className="font-medium text-orange-300 mb-1">🔒 File Upload - Pro Feature</p>
+                  <p className="text-xs mb-2">Upload videos, audio, and documents for AI processing</p>
+                  <button
+                    onClick={() => router.push('/pricing')}
+                    className="text-cyan-400 hover:text-cyan-300 text-xs underline"
+                  >
+                    Upgrade to Pro →
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
+
+          {/* Add upgrade message when file tab is attempted but locked */}
+          {selectedTab === 'file' && !canUseFileUpload() && (
+            <div className="backdrop-blur-xl bg-orange-500/10 border border-orange-500/30 rounded-2xl p-8 text-center mb-8">
+              <div className="text-6xl mb-4">🔒</div>
+              <h3 className="text-orange-300 text-2xl font-semibold mb-3">File Upload - Pro Feature</h3>
+              <p className="text-orange-200 mb-6 max-w-md mx-auto">
+                Upload videos, audio files, and documents for AI-powered content transformation. 
+                Available on Pro plans and above.
+              </p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 text-sm">
+                <div className="bg-slate-800/50 rounded-xl p-4">
+                  <div className="text-2xl mb-2">🎬</div>
+                  <p className="text-slate-300">Video Processing</p>
+                  <p className="text-slate-500 text-xs">MP4, MOV, WebM</p>
+                </div>
+                <div className="bg-slate-800/50 rounded-xl p-4">
+                  <div className="text-2xl mb-2">🎵</div>
+                  <p className="text-slate-300">Audio Transcription</p>
+                  <p className="text-slate-500 text-xs">MP3, WAV, M4A</p>
+                </div>
+                <div className="bg-slate-800/50 rounded-xl p-4">
+                  <div className="text-2xl mb-2">📄</div>
+                  <p className="text-slate-300">Document Analysis</p>
+                  <p className="text-slate-500 text-xs">PDF, DOCX, TXT</p>
+                </div>
+              </div>
+              
+              <div className="flex justify-center gap-4">
+                <button
+                  onClick={() => router.push('/pricing')}
+                  className="bg-gradient-to-r from-cyan-400 to-purple-400 text-white font-semibold px-8 py-3 rounded-xl hover:scale-105 transition-all duration-300"
+                >
+                  Upgrade to Pro ($79/month) →
+                </button>
+                <button
+                  onClick={() => setSelectedTab('text')}
+                  className="px-6 py-3 bg-white/10 border border-white/20 text-white rounded-xl hover:bg-white/20 transition-colors"
+                >
+                  Use Text Input Instead
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Text Content Tab */}
           {selectedTab === 'text' && (
@@ -708,8 +787,8 @@ const processContentWithAI = async (content: string) => {
             </div>
           )}
 
-          {/* File Upload Tab */}
-          {selectedTab === 'file' && (
+          {/* File Upload Tab - Updated with tier check */}
+          {selectedTab === 'file' && canUseFileUpload() && (
             <div className="space-y-4">
               {!selectedFile ? (
                 <div
