@@ -276,11 +276,13 @@ export default function PricingPage() {
             <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-xl p-6">
               <h4 className="font-semibold text-white mb-2">What happens to my content after canceling?</h4>
               <p className="text-slate-300 text-sm">Your content remains accessible for 30 days after cancellation, giving you time to export.</p>
-            </div>
-            <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-xl p-6">
-              <h4 className="font-semibold text-white mb-2">Do you offer refunds?</h4>
-              <p className="text-slate-300 text-sm">We offer a 7-day money-back guarantee on all paid plans.</p>
-            </div>
+            </div>            
+<div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-xl p-6">
+  <h4 className="font-semibold text-white mb-2">What happens when I cancel my subscription?</h4>
+  <p className="text-slate-300 text-sm">
+    You can cancel anytime with no penalties. When you cancel, you'll keep full access to all features until the end of your current billing period. No refunds are provided, but you get what you paid for.
+  </p>
+</div>
             <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-xl p-6">
               <h4 className="font-semibled text-white mb-2">Is my content data secure?</h4>
               <p className="text-slate-300 text-sm">Absolutely. We use enterprise-grade encryption and never share your content.</p>
