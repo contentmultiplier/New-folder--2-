@@ -6,9 +6,16 @@ import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 
+interface SubscriptionData {
+  tier: string;
+  status: string;
+  jobs_used_this_month: number;
+}
+
 export default function Navigation() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [subscriptionData, setSubscriptionData] = useState<SubscriptionData | null>(null);
   const { user, loading, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -18,6 +25,31 @@ export default function Navigation() {
     setMounted(true);
   }, []);
 
+  // Fetch subscription data
+  useEffect(() => {
+    const fetchSubscriptionData = async () => {
+      if (!user) return;
+
+      try {
+        const response = await fetch(`/api/user-subscription?userId=${user.id}`);
+        if (response.ok) {
+          const data = await response.json();
+          setSubscriptionData(data);
+        }
+      } catch (error) {
+        console.error('Error fetching subscription data:', error);
+        // Fallback to trial data
+        setSubscriptionData({
+          tier: 'trial',
+          status: 'active',
+          jobs_used_this_month: 0
+        });
+      }
+    };
+
+    fetchSubscriptionData();
+  }, [user]);
+
   const handleLogout = async () => {
     try {
       await logout();
@@ -26,6 +58,31 @@ export default function Navigation() {
       console.error('Logout error:', error);
     }
   };
+
+  // Get tier display info
+  const getTierDisplayInfo = () => {
+    if (!subscriptionData) {
+      return { display: 'Loading...', jobsRemaining: '...' };
+    }
+
+    const tierLimits = {
+      trial: { name: 'Free Trial', limit: 3 },
+      basic: { name: 'Basic', limit: 20 },
+      pro: { name: 'Pro', limit: 100 },
+      business: { name: 'Business', limit: 500 },
+      enterprise: { name: 'Enterprise', limit: 999999 }
+    };
+
+    const tierInfo = tierLimits[subscriptionData.tier as keyof typeof tierLimits] || tierLimits.trial;
+    const jobsRemaining = tierInfo.limit - subscriptionData.jobs_used_this_month;
+
+    return {
+      display: tierInfo.name,
+      jobsRemaining: tierInfo.limit === 999999 ? 'Unlimited' : `${jobsRemaining} jobs left`
+    };
+  };
+
+  const tierInfo = getTierDisplayInfo();
 
   // Don't render navigation on auth page
   if (!mounted) {
@@ -83,15 +140,15 @@ export default function Navigation() {
                   Dashboard
                 </Link>
                 <Link
-  href="/pricing"
-  className={`transition-colors duration-200 ${
-    pathname === '/pricing' 
-      ? 'text-white font-semibold' 
-      : 'text-white/80 hover:text-white'
-  }`}
->
-  Pricing
-</Link>
+                  href="/pricing"
+                  className={`transition-colors duration-200 ${
+                    pathname === '/pricing' 
+                      ? 'text-white font-semibold' 
+                      : 'text-white/80 hover:text-white'
+                  }`}
+                >
+                  Pricing
+                </Link>
                 <Link
                   href="/create-content"
                   className={`transition-colors duration-200 ${
@@ -148,10 +205,12 @@ export default function Navigation() {
 
                   {/* Dropdown Menu */}
                   {isMenuOpen && (
-                    <div className="absolute right-0 mt-2 w-48 bg-black/80 backdrop-blur-md rounded-lg border border-white/10 shadow-lg">
+                    <div className="absolute right-0 mt-2 w-56 bg-black/80 backdrop-blur-md rounded-lg border border-white/10 shadow-lg">
                       <div className="py-1">
-                        <div className="px-4 py-2 text-xs text-white/40">
-                          Free Trial • 3 jobs left
+                        <div className="px-4 py-3 border-b border-white/10">
+                          <div className="text-xs font-medium text-white/60 mb-1">Current Plan</div>
+                          <div className="text-sm font-semibold text-white">{tierInfo.display}</div>
+                          <div className="text-xs text-white/40 mt-1">{tierInfo.jobsRemaining}</div>
                         </div>
                         <Link
                           href="/settings"
@@ -161,11 +220,11 @@ export default function Navigation() {
                           Account Settings
                         </Link>
                         <Link
-                          href="/billing"
+                          href="/pricing"
                           className="block px-4 py-2 text-sm text-white/80 hover:text-white hover:bg-white/10 transition-colors duration-200"
                           onClick={() => setIsMenuOpen(false)}
                         >
-                          Billing & Usage
+                          Billing & Plans
                         </Link>
                         <button
                           onClick={handleLogout}
@@ -225,8 +284,10 @@ export default function Navigation() {
             <div className="py-2">
               {user ? (
                 <>
-                  <div className="px-4 py-2 text-xs text-white/40 border-b border-white/10">
-                    Free Trial • 3 jobs left
+                  <div className="px-4 py-3 border-b border-white/10">
+                    <div className="text-xs font-medium text-white/60 mb-1">Current Plan</div>
+                    <div className="text-sm font-semibold text-white">{tierInfo.display}</div>
+                    <div className="text-xs text-white/40 mt-1">{tierInfo.jobsRemaining}</div>
                   </div>
                   <Link
                     href="/dashboard"
@@ -240,16 +301,16 @@ export default function Navigation() {
                     Dashboard
                   </Link>
                   <Link
-  href="/pricing"
-  className={`block px-4 py-2 transition-colors duration-200 ${
-    pathname === '/pricing' 
-      ? 'text-white bg-white/10' 
-      : 'text-white/80 hover:text-white hover:bg-white/10'
-  }`}
-  onClick={() => setIsMenuOpen(false)}
->
-  Pricing
-</Link>
+                    href="/pricing"
+                    className={`block px-4 py-2 transition-colors duration-200 ${
+                      pathname === '/pricing' 
+                        ? 'text-white bg-white/10' 
+                        : 'text-white/80 hover:text-white hover:bg-white/10'
+                    }`}
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Pricing
+                  </Link>
                   <Link
                     href="/create-content"
                     className={`block px-4 py-2 transition-colors duration-200 ${
@@ -284,7 +345,7 @@ export default function Navigation() {
                     Settings
                   </Link>
                   <Link
-                    href="/billing"
+                    href="/pricing"
                     className={`block px-4 py-2 transition-colors duration-200 ${
                       pathname === '/billing' 
                         ? 'text-white bg-white/10' 
@@ -292,7 +353,7 @@ export default function Navigation() {
                     }`}
                     onClick={() => setIsMenuOpen(false)}
                   >
-                    Billing & Usage
+                    Billing & Plans
                   </Link>
                   <button
                     onClick={handleLogout}
