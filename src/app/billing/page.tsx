@@ -100,6 +100,43 @@ export default function BillingPage() {
     }
   };
 
+  // Define tier hierarchy for comparison
+  const tierHierarchy = {
+    trial: 0,
+    basic: 1,
+    pro: 2,
+    business: 3,
+    enterprise: 4
+  };
+
+  const getCurrentTierLevel = () => {
+    // Use the actual subscription tier from the API response
+    const actualTier = subscription.tier || 'trial';
+    return tierHierarchy[actualTier as keyof typeof tierHierarchy] || 0;
+  };
+
+  const getTierLevel = (tier: string) => {
+    return tierHierarchy[tier as keyof typeof tierHierarchy] || 0;
+  };
+
+  const getButtonText = (tier: string) => {
+    const currentLevel = getCurrentTierLevel();
+    const tierLevel = getTierLevel(tier);
+    const actualCurrentTier = subscription.tier || 'trial';
+    
+    console.log(`Comparing ${tier} (level ${tierLevel}) with current ${actualCurrentTier} (level ${currentLevel})`);
+    
+    if (actualCurrentTier === tier) {
+      return 'Current Plan';
+    } else if (tier === 'enterprise') {
+      return 'Contact Sales';
+    } else if (tierLevel > currentLevel) {
+      return 'Upgrade';
+    } else {
+      return 'Downgrade';
+    }
+  };
+
   if (loading || loadingSubscription) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 relative overflow-hidden">
@@ -157,15 +194,6 @@ export default function BillingPage() {
             <p className="text-slate-300 text-lg">
               Manage your subscription and track your content creation usage
             </p>
-          </div>
-
-          {/* Test Mode Notice */}
-          <div className="mb-8">
-            <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-xl p-4 text-center">
-              <p className="text-yellow-300 font-semibold">
-                🧪 Test Mode: You can test payments with card number 4242 4242 4242 4242
-              </p>
-            </div>
           </div>
 
           {/* Tab Navigation */}
@@ -307,56 +335,66 @@ export default function BillingPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   {Object.entries(SUBSCRIPTION_TIERS)
                     .filter(([key]) => key !== 'trial')
-                    .map(([key, tier]) => (
-                    <div key={key} className={`bg-slate-800/50 backdrop-blur-sm border rounded-xl p-6 transition-all duration-300 flex flex-col ${
-                      key === 'pro' ? 'border-purple-500/50' : 'border-slate-700/50 hover:border-blue-500/50'
-                    }`}>
-                      {key === 'pro' && (
-                        <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                          <span className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs font-semibold px-3 py-1 rounded-full">
-                            Most Popular
-                          </span>
+                    .map(([key, tier]) => {
+                      const buttonText = getButtonText(key);
+                      const isCurrentPlan = (subscription.tier || 'trial') === key;
+                      const currentLevel = getCurrentTierLevel();
+                      const tierLevel = getTierLevel(key);
+                      const isDowngrade = tierLevel < currentLevel;
+                      
+                      return (
+                        <div key={key} className={`bg-slate-800/50 backdrop-blur-sm border rounded-xl p-6 transition-all duration-300 flex flex-col ${
+                          key === 'pro' ? 'border-purple-500/50' : 'border-slate-700/50 hover:border-blue-500/50'
+                        }`}>
+                          {key === 'pro' && (
+                            <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                              <span className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs font-semibold px-3 py-1 rounded-full">
+                                Most Popular
+                              </span>
+                            </div>
+                          )}
+                          <div className="text-center flex-grow">
+                            <h3 className="text-lg font-semibold text-white mb-2">
+                              {tier.name}
+                            </h3>
+                            <div className="text-3xl font-bold text-white mb-1">${tier.price}</div>
+                            <div className="text-slate-300 text-sm mb-4">per month</div>
+                            <div className="space-y-2 text-sm text-slate-300 mb-6 flex-grow">
+                              {tier.features.slice(0, 3).map((feature, index) => (
+                                <div key={index}>{feature}</div>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="mt-auto">
+                            <button 
+                              onClick={() => {
+                                if (key === 'enterprise') {
+                                  window.open('mailto:sales@contentmux.com?subject=Enterprise Plan Inquiry', '_blank');
+                                } else {
+                                  handleUpgrade(key);
+                                }
+                              }}
+                              disabled={isCurrentPlan}
+                              className={`w-full font-semibold py-2 px-4 rounded-lg transition duration-300 ${
+                                isCurrentPlan
+                                  ? 'bg-slate-600 text-slate-400 cursor-not-allowed'
+                                  : key === 'enterprise'
+                                  ? 'bg-gradient-to-r from-yellow-400 to-orange-400 text-white hover:scale-105'
+                                  : isDowngrade
+                                  ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white hover:scale-105'
+                                  : key === 'pro' 
+                                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:scale-105'
+                                  : key === 'basic'
+                                  ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:scale-105'
+                                  : 'bg-gradient-to-r from-emerald-500 to-blue-500 text-white hover:scale-105'
+                              }`}
+                            >
+                              {buttonText}
+                            </button>
+                          </div>
                         </div>
-                      )}
-                      <div className="text-center flex-grow">
-                        <h3 className="text-lg font-semibold text-white mb-2">
-                          {tier.name}
-                        </h3>
-                        <div className="text-3xl font-bold text-white mb-1">${tier.price}</div>
-                        <div className="text-slate-300 text-sm mb-4">per month</div>
-                        <div className="space-y-2 text-sm text-slate-300 mb-6 flex-grow">
-                          {tier.features.slice(0, 3).map((feature, index) => (
-                            <div key={index}>{feature}</div>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="mt-auto">
-                        <button 
-                          onClick={() => {
-                            if (key === 'enterprise') {
-                              window.open('mailto:sales@contentmux.com?subject=Enterprise Plan Inquiry', '_blank');
-                            } else {
-                              handleUpgrade(key);
-                            }
-                          }}
-                          disabled={subscription.tier === key}
-                          className={`w-full font-semibold py-2 px-4 rounded-lg transition duration-300 ${
-                            subscription.tier === key
-                              ? 'bg-slate-600 text-slate-400 cursor-not-allowed'
-                              : key === 'enterprise'
-                              ? 'bg-gradient-to-r from-yellow-400 to-orange-400 text-white hover:scale-105'
-                              : key === 'pro' 
-                              ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:scale-105'
-                              : key === 'basic'
-                              ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:scale-105'
-                              : 'bg-gradient-to-r from-emerald-500 to-blue-500 text-white hover:scale-105'
-                          }`}
-                        >
-                          {subscription.tier === key ? 'Current Plan' : key === 'enterprise' ? 'Contact Sales' : 'Upgrade'}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                      );
+                    })}
                 </div>
               </div>
             </div>

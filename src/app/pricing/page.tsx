@@ -97,26 +97,6 @@ export default function PricingPage() {
           </p>
         </div>
 
-        {/* Test Mode Notice */}
-        <div className="max-w-4xl mx-auto mb-8">
-          <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-xl p-4 text-center">
-            <p className="text-yellow-300 font-semibold">
-              🧪 Test Mode: You can test payments with card number 4242 4242 4242 4242
-            </p>
-          </div>
-        </div>
-
-        {/* Debug Info - Remove this after testing */}
-        {user && (
-          <div className="max-w-4xl mx-auto mb-8">
-            <div className="bg-blue-500/20 border border-blue-500/30 rounded-xl p-4 text-center">
-              <p className="text-blue-300 text-sm">
-                Debug: User ID {user.id} | Email: {user.email}
-              </p>
-            </div>
-          </div>
-        )}
-
         {/* Pricing Cards - Two Row Layout */}
         <div className="max-w-7xl mx-auto">
           {/* First Row: Trial, Basic, Pro */}
@@ -302,7 +282,7 @@ export default function PricingPage() {
               <p className="text-slate-300 text-sm">We offer a 7-day money-back guarantee on all paid plans.</p>
             </div>
             <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-xl p-6">
-              <h4 className="font-semibold text-white mb-2">Is my content data secure?</h4>
+              <h4 className="font-semibled text-white mb-2">Is my content data secure?</h4>
               <p className="text-slate-300 text-sm">Absolutely. We use enterprise-grade encryption and never share your content.</p>
             </div>
           </div>

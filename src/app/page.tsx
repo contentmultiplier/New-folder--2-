@@ -13,12 +13,7 @@ export default function Home() {
         </div>
 
         <div className="relative container mx-auto px-6 pt-20 pb-32">
-          <div className="text-center max-w-5xl mx-auto">
-            {/* Status Badge */}
-            <div className="inline-flex items-center bg-gradient-to-r from-emerald-500/20 to-blue-500/20 border border-emerald-500/30 rounded-full px-6 py-2 mb-8">
-              <div className="w-2 h-2 bg-emerald-400 rounded-full mr-3 animate-pulse"></div>
-              <span className="text-emerald-300 text-sm font-medium">AI APIs Active • Foundation Complete</span>
-            </div>
+          <div className="text-center max-w-5xl mx-auto">           
 
             {/* Main Headline */}
             <h1 className="text-6xl md:text-7xl font-bold mb-8 leading-tight">
@@ -257,11 +252,11 @@ export default function Home() {
             AI-powered content repurposing for the modern creator
           </p>
           <div className="flex justify-center gap-6 text-slate-400 text-sm">
-            <span>© 2024 ContentMux</span>
+            <span>© 2025 ContentMux</span>
             <span>•</span>
-            <span>Built with Next.js & Claude AI</span>
+            <span>Built with Next.js</span>
             <span>•</span>
-            <span>Foundation + Auth + AI APIs Complete ✅</span>
+            <span>World leading content repurposing App ✅</span>
           </div>
         </div>
       </footer>
