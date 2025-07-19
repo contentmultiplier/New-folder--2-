@@ -53,11 +53,65 @@ export default function Home() {
             </h1>
 
             {/* Subtitle */}
-            <p className="text-xl md:text-2xl text-slate-300 mb-12 max-w-4xl mx-auto leading-relaxed">
+            <p className="text-xl md:text-2xl text-slate-300 mb-8 max-w-4xl mx-auto leading-relaxed">
               The only AI-powered content repurposing platform that saves creators 
               <span className="text-emerald-400 font-semibold"> 15+ hours per week</span>. 
               Transform podcasts, videos, and articles into platform-optimized content instantly.
             </p>
+
+            {/* Platform Logos Section - NEW! */}
+            <div className="mb-12">
+              <p className="text-slate-400 text-sm mb-6 uppercase tracking-wide">Repurpose for all major platforms</p>
+              <div className="flex flex-wrap justify-center items-center gap-6 md:gap-8">
+                {/* LinkedIn */}
+                <div className="group flex items-center gap-2 bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg px-4 py-2 hover:bg-white/10 transition duration-300">
+                  <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center">
+                    <span className="text-white font-bold text-sm">in</span>
+                  </div>
+                  <span className="text-slate-300 font-medium">LinkedIn</span>
+                </div>
+
+                {/* Twitter/X */}
+                <div className="group flex items-center gap-2 bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg px-4 py-2 hover:bg-white/10 transition duration-300">
+                  <div className="w-8 h-8 bg-black rounded flex items-center justify-center border border-white/20">
+                    <span className="text-white font-bold text-sm">𝕏</span>
+                  </div>
+                  <span className="text-slate-300 font-medium">Twitter</span>
+                </div>
+
+                {/* Facebook */}
+                <div className="group flex items-center gap-2 bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg px-4 py-2 hover:bg-white/10 transition duration-300">
+                  <div className="w-8 h-8 bg-blue-500 rounded flex items-center justify-center">
+                    <span className="text-white font-bold text-sm">f</span>
+                  </div>
+                  <span className="text-slate-300 font-medium">Facebook</span>
+                </div>
+
+                {/* Instagram */}
+                <div className="group flex items-center gap-2 bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg px-4 py-2 hover:bg-white/10 transition duration-300">
+                  <div className="w-8 h-8 bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 rounded flex items-center justify-center">
+                    <span className="text-white font-bold text-sm">📷</span>
+                  </div>
+                  <span className="text-slate-300 font-medium">Instagram</span>
+                </div>
+
+                {/* YouTube */}
+                <div className="group flex items-center gap-2 bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg px-4 py-2 hover:bg-white/10 transition duration-300">
+                  <div className="w-8 h-8 bg-red-600 rounded flex items-center justify-center">
+                    <span className="text-white font-bold text-sm">▶</span>
+                  </div>
+                  <span className="text-slate-300 font-medium">YouTube</span>
+                </div>
+
+                {/* TikTok */}
+                <div className="group flex items-center gap-2 bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg px-4 py-2 hover:bg-white/10 transition duration-300">
+                  <div className="w-8 h-8 bg-black rounded flex items-center justify-center border border-white/20">
+                    <span className="text-white font-bold text-sm">🎵</span>
+                  </div>
+                  <span className="text-slate-300 font-medium">TikTok</span>
+                </div>
+              </div>
+            </div>
 
             {/* CTA Buttons */}
 <div className="flex flex-col sm:flex-row gap-6 justify-center mb-16">
@@ -116,7 +170,7 @@ export default function Home() {
                 <h3 className="text-2xl font-bold mb-4">Smart Repurposing</h3>
                 <p className="text-slate-300 mb-6">Transform long-form content into platform-optimized posts for Twitter, LinkedIn, Instagram, and more.</p>
                 <div className="flex items-center text-blue-400 font-semibold">
-                  <span>5 platforms supported</span>
+                  <span>6 platforms supported</span>
                   <span className="ml-2">→</span>
                 </div>
               </div>
