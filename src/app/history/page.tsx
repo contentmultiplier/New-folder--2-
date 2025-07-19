@@ -61,18 +61,17 @@ export default function History() {
         setIsLoading(true);
         const supabase = createClient();
 
-        // Fetch user tier from profile
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('subscription_tier')
-          .eq('id', user.id)
-          .single();
+       // Fetch user subscription data (same as other pages)
+const subscriptionResponse = await fetch(`/api/user-subscription?userId=${user.id}`);
+const subscriptionData = await subscriptionResponse.json();
 
-        if (profileError) {
-          console.error('Error fetching profile:', profileError);
-        } else {
-          setUserTier(profileData?.subscription_tier || 'trial');
-        }
+if (subscriptionResponse.ok) {
+  setUserTier(subscriptionData.tier || 'trial');
+  // Now you can also use subscriptionData.jobs_used_this_month
+} else {
+  console.error('Error fetching subscription:', subscriptionData.error);
+  setUserTier('trial');
+} 
 
         // Fetch content with platform content
         const { data: contentData, error: contentError } = await supabase
