@@ -1,4 +1,4 @@
-// app/api/create-checkout/route.ts - REVERTED TO WORKING VERSION
+// app/api/create-checkout/route.ts - LIVE MODE COMPATIBLE
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
@@ -53,10 +53,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create or get Stripe customer
+    // For live mode: Always create a new customer to avoid test/live conflicts
+    // We'll let Stripe create the customer during checkout and update our database via webhook
     let customerId = profile.stripe_customer_id;
 
+    // Check if the existing customer ID is from test mode or doesn't exist in live mode
+    if (customerId) {
+      try {
+        // Try to retrieve the customer to see if it exists in live mode
+        await stripe.customers.retrieve(customerId);
+        console.log('Existing customer found in live mode:', customerId);
+      } catch (error: any) {
+        if (error.code === 'resource_missing') {
+          console.log('Customer not found in live mode, will create new one');
+          customerId = null; // Reset so we create a new one
+        } else {
+          throw error; // Re-throw other errors
+        }
+      }
+    }
+
+    // Create new customer if none exists or if old one was from test mode
     if (!customerId) {
+      console.log('Creating new customer for live mode...');
       const customer = await stripe.customers.create({
         email: profile.email,
         metadata: {
@@ -65,11 +84,16 @@ export async function POST(request: NextRequest) {
       });
       customerId = customer.id;
 
-      // Update profile with Stripe customer ID
+      // Update profile with new live Stripe customer ID
       await supabase
         .from('profiles')
-        .update({ stripe_customer_id: customerId })
+        .update({ 
+          stripe_customer_id: customerId,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', userId);
+
+      console.log('Created new customer and updated profile:', customerId);
     }
 
     // Create Stripe checkout session
@@ -96,6 +120,8 @@ export async function POST(request: NextRequest) {
         },
       },
     });
+
+    console.log('Checkout session created successfully:', session.id);
 
     return NextResponse.json({ 
       sessionId: session.id,
