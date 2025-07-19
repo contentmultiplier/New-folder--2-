@@ -1,4 +1,33 @@
 import React from 'react'
+import { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'ContentMux - AI-Powered Content Repurposing Tool | Save 15+ Hours Per Week',
+  description: 'Transform one piece of content into multiple platform-optimized formats with AI. Repurpose blogs, videos, and podcasts for LinkedIn, Twitter, Facebook, Instagram, YouTube, and TikTok automatically.',
+  keywords: 'AI content repurposing, social media automation, content multiplier, repurpose content, AI social media tool, content creation automation',
+  authors: [{ name: 'ContentMux' }],
+  creator: 'ContentMux',
+  publisher: 'ContentMux',
+  openGraph: {
+    type: 'website',
+    locale: 'en_US',
+    url: 'https://www.contentmux.com/',
+    title: 'ContentMux - AI Content Repurposing Tool',
+    description: 'Save 15+ hours per week by automatically repurposing content across all social platforms with AI.',
+    siteName: 'ContentMux',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'ContentMux - AI Content Repurposing Tool',
+    description: 'Transform one piece of content into multiple platform-optimized formats automatically.',
+    creator: '@contentmux',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+}
+
 
 export default function Home() {
   return (
@@ -238,6 +267,51 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Schema Markup for SEO */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "SoftwareApplication",
+            "name": "ContentMux",
+            "description": "AI-powered content repurposing tool that transforms one piece of content into multiple platform-optimized formats, saving creators 15+ hours per week.",
+            "applicationCategory": "BusinessApplication",
+            "operatingSystem": "Web Browser",
+            "offers": {
+              "@type": "AggregateOffer",
+              "lowPrice": "29",
+              "highPrice": "499",
+              "priceCurrency": "USD",
+              "priceSpecification": {
+                "@type": "UnitPriceSpecification",
+                "billingDuration": "P1M",
+                "referenceQuantity": {
+                  "@type": "QuantitativeValue",
+                  "value": "1"
+                }
+              }
+            },
+            "creator": {
+              "@type": "Organization",
+              "name": "ContentMux"
+            },
+            "featureList": [
+              "AI Content Repurposing",
+              "Multi-Platform Optimization", 
+              "LinkedIn Content Generation",
+              "Twitter Content Generation",
+              "Facebook Content Generation",
+              "Instagram Content Generation",
+              "YouTube Content Generation",
+              "TikTok Content Generation",
+              "Hashtag Generation",
+              "Audio/Video Transcription"
+            ]
+          })
+        }}
+      />
 
       {/* Footer */}
       <footer className="bg-slate-900/80 backdrop-blur-sm border-t border-slate-800 py-12">
