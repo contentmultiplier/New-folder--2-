@@ -7,9 +7,13 @@ import GoogleAnalytics from '@/components/analytics';
 
 const inter = Inter({ subsets: ['latin'] });
 
+//Google SEO
 export const metadata: Metadata = {
   title: 'ContentMux - AI-Powered Content Repurposing',
   description: 'Transform one piece of content into multiple platform-optimized formats. Save 15+ hours per week with AI-powered content repurposing.',
+  verification: {
+    google: 'ecF-zsIhenDSK0lKTEAoGOE3X7GJZeDir2cvSdMRswo',
+  },
 };
 
 export default function RootLayout({
