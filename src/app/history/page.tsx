@@ -12,8 +12,6 @@ interface ContentItem {
   content_type: string;
   created_at: string;
   platforms_generated: string[];
-  file_type?: string;
-  original_transcript?: string; // Added for video transcripts
   platform_content?: {
     [key: string]: string;
   };
@@ -43,7 +41,11 @@ export default function History() {
   const [selectedContent, setSelectedContent] = useState<ContentItem | null>(null);
   const [copiedPlatform, setCopiedPlatform] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [userTier, setUserTier] = useState<string>('trial'); // Add user tier tracking
+  const [usageData, setUsageData] = useState({
+    jobsUsed: 0,
+    jobsLimit: 3,
+    tier: 'trial'
+  });
 
   // Redirect to auth if not logged in
   useEffect(() => {
@@ -61,19 +63,25 @@ export default function History() {
         setIsLoading(true);
         const supabase = createClient();
 
-       // Fetch user subscription data (same as other pages)
-const subscriptionResponse = await fetch(`/api/user-subscription?userId=${user.id}`);
-const subscriptionData = await subscriptionResponse.json();
+        // Fetch user subscription data (same as other pages)
+        const subscriptionResponse = await fetch(`/api/user-subscription?userId=${user.id}`);
+        const subscriptionData = await subscriptionResponse.json();
 
-if (subscriptionResponse.ok) {
-  setUserTier(subscriptionData.tier || 'trial');
-  // Now you can also use subscriptionData.jobs_used_this_month
-} else {
-  console.error('Error fetching subscription:', subscriptionData.error);
-  setUserTier('trial');
-} 
+        if (subscriptionResponse.ok) {
+          setUsageData({
+            jobsUsed: subscriptionData.jobs_used_this_month || 0,
+            jobsLimit: subscriptionData.tier === 'trial' ? 3 : 
+                      subscriptionData.tier === 'basic' ? 20 :
+                      subscriptionData.tier === 'pro' ? 100 :
+                      subscriptionData.tier === 'business' ? 500 : 999999,
+            tier: subscriptionData.tier || 'trial'
+          });
+        } else {
+          console.error('Error fetching subscription:', subscriptionData.error);
+          setUsageData({ jobsUsed: 0, jobsLimit: 3, tier: 'trial' });
+        }
 
-        // Fetch content with platform content
+        // Fetch content with platform content - CLEANED UP
         const { data: contentData, error: contentError } = await supabase
           .from('content')
           .select(`
@@ -82,8 +90,6 @@ if (subscriptionResponse.ok) {
             content_type,
             created_at,
             platforms_generated,
-            file_type,
-            original_transcript,
             platform_content (
               id,
               content_id,
@@ -99,6 +105,8 @@ if (subscriptionResponse.ok) {
           console.error('Error fetching content:', contentError);
           return;
         }
+
+        console.log('Fetched content data:', contentData); // Debug log
 
         // Transform the data to match our interface
         const transformedContent: ContentItem[] = (contentData || []).map(item => {
@@ -121,13 +129,12 @@ if (subscriptionResponse.ok) {
             content_type: item.content_type,
             created_at: item.created_at,
             platforms_generated: item.platforms_generated || [],
-            file_type: item.file_type,
-            original_transcript: item.original_transcript,
             platform_content: platformContent,
             hashtags: hashtags
           };
         });
 
+        console.log('Transformed content:', transformedContent); // Debug log
         setContent(transformedContent);
       } catch (error) {
         console.error('Error fetching content history:', error);
@@ -159,14 +166,6 @@ if (subscriptionResponse.ok) {
   if (!user) {
     return null;
   }
-
-  // Check if user has Pro+ access for transcript viewing
-  const isProPlus = ['pro', 'business', 'enterprise'].includes(userTier.toLowerCase());
-
-  // Helper function to check if content is video
-  const isVideoContent = (item: ContentItem) => {
-    return item.file_type && ['video/mp4', 'video/mov', 'video/avi', 'video/quicktime'].includes(item.file_type.toLowerCase());
-  };
 
   // Filter and sort content
   const filteredContent = content
@@ -260,7 +259,7 @@ if (subscriptionResponse.ok) {
             </p>
           </div>
 
-          {/* Stats Bar */}
+          {/* Stats Bar with Real Usage Data */}
           <div className="group relative mb-12">
             <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-blue-500 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-300"></div>
             <div className="relative bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 p-6 rounded-xl">
@@ -283,6 +282,14 @@ if (subscriptionResponse.ok) {
                       {content.length * 3}h
                     </div>
                     <div className="text-slate-400 text-sm">Time Saved</div>
+                  </div>
+                  <div className="text-center">
+                    <div className={`text-2xl font-bold bg-gradient-to-r ${
+                      usageData.jobsUsed >= usageData.jobsLimit ? 'from-red-400 to-pink-400' : 'from-cyan-400 to-blue-400'
+                    } bg-clip-text text-transparent`}>
+                      {usageData.jobsUsed} / {usageData.jobsLimit}
+                    </div>
+                    <div className="text-slate-400 text-sm">Jobs Used This Month</div>
                   </div>
                 </div>
                 <Link href="/create-content" className="group relative">
@@ -377,7 +384,6 @@ if (subscriptionResponse.ok) {
                 const typeConfig = getContentTypeConfig(item.content_type);
                 const isExpanded = selectedContent?.id === item.id;
                 const platformCount = item.platforms_generated?.length || 0;
-                const hasVideoTranscript = isVideoContent(item) && item.original_transcript && isProPlus;
                 
                 return (
                   <div key={item.id} className="group relative">
@@ -396,12 +402,6 @@ if (subscriptionResponse.ok) {
                                 <span className={`bg-gradient-to-r ${typeConfig.gradient} bg-clip-text text-transparent font-bold text-lg`}>
                                   {formatContentType(item.content_type)}
                                 </span>
-                                {hasVideoTranscript && (
-                                  <div className="flex items-center gap-1 bg-gradient-to-r from-emerald-500/20 to-blue-500/20 border border-emerald-500/30 rounded-full px-3 py-1">
-                                    <span className="text-emerald-400 text-xs">🎬</span>
-                                    <span className="text-emerald-300 text-xs font-medium">Video + Transcript</span>
-                                  </div>
-                                )}
                               </div>
                               <div className="text-slate-400 text-sm mt-1">
                                 Created {formatDate(item.created_at)} • {platformCount} platform{platformCount !== 1 ? 's' : ''}
@@ -428,53 +428,6 @@ if (subscriptionResponse.ok) {
                       {isExpanded && (
                         <div className="border-t border-slate-700/50 pt-8 mt-8 space-y-8">
                           
-                          {/* Video Transcript Section (Pro+ users only) */}
-                          {hasVideoTranscript && (
-                            <div>
-                              <div className="flex items-center gap-3 mb-6">
-                                <div className="w-8 h-8 bg-gradient-to-r from-emerald-500 to-blue-500 rounded-lg flex items-center justify-center">
-                                  <span className="text-sm">🎬</span>
-                                </div>
-                                <h4 className="text-2xl font-bold text-white">Video Transcript</h4>
-                                <div className="flex items-center gap-2 bg-gradient-to-r from-emerald-500/20 to-blue-500/20 border border-emerald-500/30 rounded-full px-3 py-1">
-                                  <span className="text-emerald-400 text-xs">✨</span>
-                                  <span className="text-emerald-300 text-xs font-medium">Pro+ Feature</span>
-                                </div>
-                              </div>
-                              
-                              <div className="group relative mb-8">
-                                <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-blue-500 rounded-xl blur opacity-25 group-hover:opacity-50 transition duration-300"></div>
-                                <div className="relative bg-slate-700/30 border border-slate-600/50 rounded-lg p-6">
-                                  <div className="flex items-center justify-between mb-4">
-                                    <div className="flex items-center gap-3">
-                                      <div className="w-10 h-10 bg-gradient-to-r from-emerald-500 to-blue-500 rounded-xl flex items-center justify-center">
-                                        <span className="text-lg">📝</span>
-                                      </div>
-                                      <span className="text-white font-semibold text-lg">Extracted Text</span>
-                                    </div>
-                                    <button
-                                      onClick={() => copyToClipboard(item.original_transcript!, 'transcript')}
-                                      className={`group relative transition-all duration-300 ${
-                                        copiedPlatform === 'transcript' ? 'scale-110' : 'hover:scale-105'
-                                      }`}
-                                    >
-                                      <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-blue-500 rounded-lg blur opacity-75 group-hover:opacity-100 transition duration-300"></div>
-                                      <div className="relative bg-gradient-to-r from-emerald-500 to-blue-500 text-white font-semibold px-4 py-2 rounded-lg text-sm">
-                                        {copiedPlatform === 'transcript' ? '✅ Copied!' : '📋 Copy Transcript'}
-                                      </div>
-                                    </button>
-                                  </div>
-                                  
-                                  <div className="bg-slate-800/50 rounded-lg p-4 max-h-64 overflow-y-auto">
-                                    <p className="text-slate-200 leading-relaxed text-sm whitespace-pre-wrap">
-                                      {item.original_transcript}
-                                    </p>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
                           {/* Platform Content Section */}
                           <div>
                             <div className="flex items-center gap-3 mb-8">
@@ -584,4 +537,4 @@ if (subscriptionResponse.ok) {
       </div>
     </div>
   );
-} 
+}
