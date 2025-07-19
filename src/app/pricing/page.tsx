@@ -1,11 +1,10 @@
-'use client';
-
 import { useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { SUBSCRIPTION_TIERS } from '@/lib/subscription-config';
 import { useRouter } from 'next/navigation';
 import { Metadata } from 'next'
 
+//SEO
 export const metadata: Metadata = {
   title: 'ContentMux Pricing - AI Content Repurposing Plans | Starting at $29/month',
   description: 'Choose the perfect ContentMux plan for your content needs. Transform content across 2-6 platforms with AI. Free trial available. Plans from $29-$499/month.',

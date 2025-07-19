@@ -1,10 +1,11 @@
-'use client';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { Metadata } from 'next'
 
+
+//SEO
 export const metadata: Metadata = {
   title: 'Create Content - AI Content Repurposing Tool | ContentMux',
   description: 'Transform your content into platform-optimized posts for LinkedIn, Twitter, Facebook, Instagram, YouTube, and TikTok with AI. Upload text, video, or audio files.',
