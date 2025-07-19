@@ -137,7 +137,7 @@ export default function History() {
       }
     };
 
- fetchContentHistory();
+    fetchContentHistory();
   }, [user]);
 
   if (loading || isLoading) {
@@ -196,7 +196,7 @@ export default function History() {
     });
   };
 
-const copyToClipboard = async (text: string, platform: string) => {
+  const copyToClipboard = async (text: string, platform: string) => {
     try {
       await navigator.clipboard.writeText(text);
       setCopiedPlatform(platform);
@@ -227,7 +227,8 @@ const copyToClipboard = async (text: string, platform: string) => {
     };
     return configs[type] || { icon: '📄', gradient: 'from-gray-500 to-gray-700' };
   };
-const formatContentType = (contentType: string) => {
+
+  const formatContentType = (contentType: string) => {
     if (!contentType) return 'Content';
     return contentType.charAt(0).toUpperCase() + contentType.slice(1).replace('_', ' ');
   };
@@ -258,7 +259,7 @@ const formatContentType = (contentType: string) => {
             <p className="text-xl text-slate-300 max-w-3xl mx-auto">
               View, search, and manage all your AI-transformed content. Copy platform-optimized posts and hashtags with one click.
             </p>
-</div>
+          </div>
 
           {/* Stats Bar */}
           <div className="group relative mb-12">
@@ -293,7 +294,7 @@ const formatContentType = (contentType: string) => {
                 </Link>
               </div>
             </div>
-            </div>
+          </div>
 
           {/* Filters and Search */}
           <div className="group relative mb-12">
@@ -368,7 +369,7 @@ const formatContentType = (contentType: string) => {
 
               </div>
             </div>
-            </div>
+          </div>
 
           {/* Content List */}
           {filteredContent.length > 0 ? (
@@ -555,7 +556,7 @@ const formatContentType = (contentType: string) => {
               })}
             </div>
           ) : (
-            <div className="group relative">
+           <div className="group relative">
               <div className="absolute -inset-1 bg-gradient-to-r from-slate-600 to-slate-500 rounded-2xl blur opacity-25"></div>
               <div className="relative bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 p-16 rounded-xl text-center">
                 <div className="w-24 h-24 bg-gradient-to-r from-slate-600 to-slate-500 rounded-3xl flex items-center justify-center mx-auto mb-8">
@@ -584,6 +585,4 @@ const formatContentType = (contentType: string) => {
       </div>
     </div>
   );
-}
-          
-  
+} 
