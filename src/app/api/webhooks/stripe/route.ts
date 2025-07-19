@@ -131,10 +131,23 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session, supabas
     }
 
     try {
-      // Get the subscription details from Stripe
-      console.log('Fetching subscription from Stripe...');
-      const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
-      console.log('Subscription retrieved:', subscription.id, subscription.status);
+      let subscription: any;
+      
+      // Check if this is a test subscription ID
+      if (session.subscription.toString().startsWith('sub_test_')) {
+        console.log('Test mode: using mock subscription data');
+        subscription = {
+          id: session.subscription,
+          status: 'active',
+          customer: session.customer || 'cus_test_sample',
+          metadata: { userId, tier }
+        };
+      } else {
+        // Get the subscription details from Stripe for real subscriptions
+        console.log('Fetching subscription from Stripe...');
+        subscription = await stripe.subscriptions.retrieve(session.subscription as string);
+        console.log('Subscription retrieved:', subscription.id, subscription.status);
+      }
       
       // Create/update subscription in database
       await upsertSubscription(userId, tier, subscription, supabase);
@@ -210,26 +223,14 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription, supa
   }
 }
 
-async function upsertSubscription(userId: string, tier: string, subscription: Stripe.Subscription, supabase: any) {
+async function upsertSubscription(userId: string, tier: string, subscription: any, supabase: any) {
   console.log('=== UPSERTING SUBSCRIPTION ===');
   console.log('User ID:', userId);
   console.log('Tier:', tier);
   console.log('Subscription status:', subscription.status);
 
   try {
-    const subscriptionData = {
-      user_id: userId,
-      tier: tier,
-      status: subscription.status,
-      stripe_subscription_id: subscription.id,
-      stripe_customer_id: subscription.customer as string,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-
-    console.log('Subscription data to insert/update:', subscriptionData);
-
-    // Check if subscription already exists
+    // Check if subscription already exists first
     console.log('Checking for existing subscription...');
     const { data: existingSubscription, error: selectError } = await supabase
       .from('subscriptions')
@@ -244,10 +245,21 @@ async function upsertSubscription(userId: string, tier: string, subscription: St
 
     if (existingSubscription) {
       console.log('Updating existing subscription...');
-      // Update existing subscription
+      // Update existing subscription (no created_at needed)
+      const updateData = {
+        user_id: userId,
+        tier: tier,
+        status: subscription.status,
+        stripe_subscription_id: subscription.id,
+        stripe_customer_id: subscription.customer as string,
+        updated_at: new Date().toISOString()
+      };
+
+      console.log('Update data:', updateData);
+
       const { error } = await supabase
         .from('subscriptions')
-        .update(subscriptionData)
+        .update(updateData)
         .eq('user_id', userId);
 
       if (error) {
@@ -258,10 +270,22 @@ async function upsertSubscription(userId: string, tier: string, subscription: St
       }
     } else {
       console.log('Creating new subscription...');
-      // Create new subscription
+      // Create new subscription (with created_at)
+      const insertData = {
+        user_id: userId,
+        tier: tier,
+        status: subscription.status,
+        stripe_subscription_id: subscription.id,
+        stripe_customer_id: subscription.customer as string,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      console.log('Insert data:', insertData);
+      
       const { error } = await supabase
         .from('subscriptions')
-        .insert(subscriptionData);
+        .insert(insertData);
 
       if (error) {
         console.error('❌ Error creating subscription:', error);
@@ -271,20 +295,22 @@ async function upsertSubscription(userId: string, tier: string, subscription: St
       }
     }
 
-    // Store/update Stripe customer ID in profiles table
-    console.log('Updating profile with customer ID...');
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .update({ 
-        stripe_customer_id: subscription.customer as string,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', userId);
+    // Store/update Stripe customer ID in profiles table (only for real customers)
+    if (!subscription.customer.toString().startsWith('cus_test_')) {
+      console.log('Updating profile with customer ID...');
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ 
+          stripe_customer_id: subscription.customer as string,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userId);
 
-    if (profileError) {
-      console.error('❌ Error updating profile:', profileError);
-    } else {
-      console.log('✅ Updated profile with customer ID');
+      if (profileError) {
+        console.error('❌ Error updating profile:', profileError);
+      } else {
+        console.log('✅ Updated profile with customer ID');
+      }
     }
 
     // Reset usage tracking for the new billing period
